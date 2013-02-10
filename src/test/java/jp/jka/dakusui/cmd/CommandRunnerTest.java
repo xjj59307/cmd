@@ -1,7 +1,9 @@
-package jp.jka.cmd;
+package jp.jka.dakusui.cmd;
 
-import jp.jka.cmd.CommandResult;
-import jp.jka.cmd.CommandRunner;
+import jp.jka.dakusui.cmd.Command;
+import jp.jka.dakusui.cmd.CommandListener;
+import jp.jka.dakusui.cmd.CommandResult;
+import jp.jka.dakusui.cmd.CommandRunner;
 import junit.framework.TestCase;
 
 import org.junit.Before;

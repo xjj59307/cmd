@@ -1,7 +1,7 @@
-package jp.jka.cmd;
+package jp.jka.dakusui.cmd;
 
-import jp.jka.cmd.Command.Buffer;
-import jp.jka.cmd.Command.SourceType;
+import jp.jka.dakusui.cmd.Command.Buffer;
+import jp.jka.dakusui.cmd.Command.SourceType;
 
 public class CommandResult {
 

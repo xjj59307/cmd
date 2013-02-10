@@ -1,4 +1,4 @@
-package jp.jka.cmd;
+package jp.jka.dakusui.cmd;
 
 import java.io.IOException;
 import java.util.LinkedList;
