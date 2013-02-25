@@ -1,20 +1,17 @@
 package jp.jka.dakusui.cmd;
 
-import jp.jka.dakusui.cmd.Command;
-import jp.jka.dakusui.cmd.CommandListener;
-import jp.jka.dakusui.cmd.CommandResult;
-import jp.jka.dakusui.cmd.CommandRunner;
-import junit.framework.TestCase;
-
-import org.junit.Before;
-import org.junit.Ignore;
-import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static java.lang.String.format;
 
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
+
+import junit.framework.TestCase;
+
+import org.junit.Before;
+import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class CommandRunnerTest {
 	private static Logger LOGGER = LoggerFactory.getLogger(CommandRunnerTest.class);
@@ -210,7 +207,7 @@ public class CommandRunnerTest {
 	@Test(timeout=10000)
 	public void test_13() throws InterruptedException, ExecutionException, TimeoutException, IOException {
 		LOGGER.info("test-13");
-		String cmd = "cat /dev/zero | head -c 10000 | base64 -b 80";
+		String cmd = format("cat /dev/zero | head -c 10000 | %s 80", base64());
 
 		String expected = buildExpectedData(80, 54);
 		// AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
@@ -224,7 +221,7 @@ public class CommandRunnerTest {
 	@Test(timeout=5000)
 	public void test_14() throws InterruptedException, ExecutionException, TimeoutException, IOException {
 		LOGGER.info("test-14");
-		String cmd = "cat /dev/zero | head -c 100000 | base64 -b 80";
+		String cmd = format("cat /dev/zero | head -c 100000 | %s 80", base64());
 
 		String expected = buildExpectedData(80, 54);
 		CommandResult result = CommandRunner.runLocal(cmd);
@@ -238,7 +235,7 @@ public class CommandRunnerTest {
 	@Test(timeout=5000)
 	public void test_15() throws InterruptedException, ExecutionException, TimeoutException, IOException {
 		LOGGER.info("test-15");
-		String cmd = "cat /dev/zero | head -c 100000 | base64 -b 80 >&2";
+		String cmd = format("cat /dev/zero | head -c 100000 | %s 80 >&2", base64());
 
 		String expected = buildExpectedData(80, 54);
 		CommandResult result = CommandRunner.runLocal(cmd);
@@ -252,7 +249,7 @@ public class CommandRunnerTest {
 	@Test(timeout=5000)
 	public void test_16() throws InterruptedException, ExecutionException, TimeoutException, IOException {
 		LOGGER.info("test-16");
-		String cmd = "cat /dev/zero | head -c 100000 | base64 -b 80 >&2 && cat /dev/zero | head -c 100000 | base64 -b 80";
+		String cmd = format("cat /dev/zero | head -c 100000 | %s 80 >&2 && cat /dev/zero | head -c 100000 | %s 80", base64(), base64());
 
 		String expected = buildExpectedData(80, 54);
 		CommandResult result = CommandRunner.runLocal(cmd);
@@ -266,7 +263,7 @@ public class CommandRunnerTest {
 	@Test(timeout=5000)
 	public void test_17() throws InterruptedException, ExecutionException, TimeoutException, IOException {
 		LOGGER.info("test-17");
-		String cmd = "cat /dev/zero | head -c 100000 | base64 -b 80 && cat /dev/zero | head -c 100000 | base64 -b 80 >&2";
+		String cmd = format("cat /dev/zero | head -c 100000 | %s 80 && cat /dev/zero | head -c 100000 | %s 80 >&2", base64(), base64());
 
 		String expected = buildExpectedData(80, 54);
 		CommandResult result = CommandRunner.runLocal(cmd);
@@ -280,7 +277,7 @@ public class CommandRunnerTest {
 	@Test(timeout=60000)
 	public void test_18() throws InterruptedException, ExecutionException, TimeoutException, IOException {
 		LOGGER.info("test-18");
-		String cmd = "cat /dev/zero | head -c 10000000 | base64 -b 80";
+		String cmd = format("cat /dev/zero | head -c 10000000 | %s 80", base64());
 
 		String expected = buildExpectedData(80, 54);
 		CommandResult result = CommandRunner.runLocal(cmd);
@@ -310,7 +307,6 @@ public class CommandRunnerTest {
 		return b.toString();
 	}
 	
-	@Ignore
 	@Test
 	public void test_19() throws InterruptedException, ExecutionException, TimeoutException, IOException {
 		LOGGER.info("test-19");
@@ -332,7 +328,6 @@ public class CommandRunnerTest {
 		}
 	}
 
-	@Ignore
 	@Test
 	public void test_20() throws InterruptedException, ExecutionException, TimeoutException, IOException {
 		LOGGER.info("test-20");
@@ -372,7 +367,6 @@ public class CommandRunnerTest {
 		}
 	}
 
-	@Ignore
 	@Test(expected=TimeoutException.class)
 	public void test_22() throws Exception {
 		LOGGER.info("test-22");
@@ -398,6 +392,23 @@ public class CommandRunnerTest {
 			TestCase.assertEquals("", result.stdout()); // make sure the process is killed.
 			TestCase.assertEquals(1, result.exitCode());
 		}
+	}
+	
+	static String systemName() {
+		return System.getProperty("os.name");
+	}
+	
+	static String base64() {
+		String systemName = systemName();
+		String ret;
+		if ("Linux".equals(systemName)) {
+			ret = "base64 -w";
+		} else if ("Mac OS X".equals(systemName)) {
+			ret = "base64 -b";
+		} else {
+			throw new RuntimeException(String.format("%s is not a supported platform.", systemName));
+		}
+		return ret;
 	}
 }
 
