@@ -101,9 +101,9 @@ public class Command {
 
 	private BufferedReader stderr;
 	
-	private List<BufferedReader> readers = new LinkedList<>();
+	private List<BufferedReader> readers = new LinkedList<BufferedReader>();
 	
-	private List<BufferedReader> finishedReaders = new LinkedList<>();
+	private List<BufferedReader> finishedReaders = new LinkedList<BufferedReader>();
 
 	private Buffer buffer;
 
@@ -152,7 +152,19 @@ public class Command {
 			for (CommandListener l : this.listeners) {
 				l.exec(this);
 			}
-		} catch (NumberFormatException | IllegalAccessException | NoSuchFieldException | SecurityException e) {
+		} catch (NumberFormatException e) {
+			String msg = "This program cannot be run on this platform.";
+			LOGGER.error(msg, e);
+			throw new Error(e);
+		} catch (IllegalAccessException e) {
+			String msg = "This program cannot be run on this platform.";
+			LOGGER.error(msg, e);
+			throw new Error(e);
+		} catch (NoSuchFieldException e) {
+			String msg = "This program cannot be run on this platform.";
+			LOGGER.error(msg, e);
+			throw new Error(e);
+		} catch (SecurityException e) {
 			String msg = "This program cannot be run on this platform.";
 			LOGGER.error(msg, e);
 			throw new Error(e);

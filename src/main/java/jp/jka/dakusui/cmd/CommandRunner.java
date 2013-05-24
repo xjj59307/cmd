@@ -10,7 +10,7 @@ import java.util.concurrent.TimeoutException;
 public class CommandRunner {
 	private static final String[] LOCAL_SHELL = new String[]{"sh", "-c"};
 
-	private static List<CommandListener> listeners = new LinkedList<>();
+	private static List<CommandListener> listeners = new LinkedList<CommandListener>();
 	
 	private CommandRunner() {
 	}
