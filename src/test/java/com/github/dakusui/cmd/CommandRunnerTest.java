@@ -1,4 +1,4 @@
-package jp.jka.dakusui.cmd;
+package com.github.dakusui.cmd;
 
 import static java.lang.String.format;
 
@@ -12,6 +12,11 @@ import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.github.dakusui.cmd.Command;
+import com.github.dakusui.cmd.CommandListener;
+import com.github.dakusui.cmd.CommandResult;
+import com.github.dakusui.cmd.CommandRunner;
 
 public class CommandRunnerTest {
 	private static Logger LOGGER = LoggerFactory.getLogger(CommandRunnerTest.class);
