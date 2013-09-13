@@ -1,14 +1,16 @@
 package com.github.dakusui.cmd;
 
-import com.github.dakusui.cmd.Command.Buffer;
 import com.github.dakusui.cmd.Command.SourceType;
+import com.github.dakusui.cmd.io.CommandSink;
 
 public class CommandResult {
 
-	private Buffer buffer;
+	private CommandSink buffer;
 	private int    exitCode;
+	private String commandLine;
 
-	public CommandResult(int exitCode, Buffer buffer) {
+	public CommandResult(String commandLine, int exitCode, CommandSink buffer) {
+		this.commandLine = commandLine;
 		this.buffer = buffer;
 		this.exitCode = exitCode;
 	}
@@ -27,6 +29,10 @@ public class CommandResult {
 	
 	public int exitCode() {
 		return this.exitCode;
+	}
+	
+	public String commandLine() {
+		return this.commandLine;
 	}
 	
 }

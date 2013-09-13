@@ -3,7 +3,6 @@ package com.github.dakusui.cmd;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.PrintStream;
 import java.lang.reflect.Field;
 import java.util.LinkedList;
 import java.util.List;
@@ -18,6 +17,12 @@ import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.github.dakusui.cmd.exceptions.CommandException;
+import com.github.dakusui.cmd.exceptions.CommandRuntimeException;
+import com.github.dakusui.cmd.exceptions.CommandTimeoutException;
+import com.github.dakusui.cmd.io.CommandSink;
+import com.github.dakusui.cmd.io.Line;
+
 public class Command {
 	static enum State {
 		NOT_STARTED,
@@ -30,70 +35,8 @@ public class Command {
 		STDERR
 	}
 	
-	public static class Line {
-		SourceType sourceType;
-		String body;
-		public Line(SourceType sourceType, String body) {
-			this.sourceType = sourceType;
-			this.body = body;
-		}
-		
-		public String toString() {
-			return String.format("%s %s", this.sourceType, body);
-		}
-	}
-	
-	public static class Buffer {
-		private static Logger LOGGER = LoggerFactory.getLogger(Buffer.class);
-		private int numLines = 0;
-		Line[] ring;
-		int    cur;
-
-		Buffer(int i) {
-			ring = new Line[i];
-			cur = 0;
-		}
-		
-		public void write(Line l) {
-			LOGGER.trace("{} {}", l.sourceType, l.body);
-			writeEngine(l);
-			numLines++;
-		}
-		
-		public void writeEngine(Line l) {
-			ring[this.cur++] = l;
-			this.cur = this.cur % ring.length;
-		}
-		
-		
-		public String asString(SourceType sourceType) {
-			StringBuffer b = new StringBuffer();
-			for (int i = 0; i < this.ring.length; i++) {
-				Line l = this.ring[(this.cur + i) % this.ring.length];
-				if (l == null) continue;
-				if (sourceType == null || l.sourceType == sourceType) {
-					b.append(l.body);
-					if (i != this.ring.length - 1) {
-						b.append(EOL);
-					}
-				}
-			}
-			return b.toString();
-		}
-		
-		public int numLines() {
-			return this.numLines;
-		}
-		
-		public String toString() {
-			return asString(null);
-		}
-	}
-	
 	private static Logger LOGGER = LoggerFactory.getLogger(Command.class);
 	
-	private static String EOL = System.getProperty("line.separator");
-
 	private State state = State.NOT_STARTED;
 	private Process proc;
 
@@ -105,7 +48,7 @@ public class Command {
 	
 	private List<BufferedReader> finishedReaders = new LinkedList<BufferedReader>();
 
-	private Buffer buffer;
+	private CommandSink buffer;
 
 	private int pid = -1;
 
@@ -115,15 +58,12 @@ public class Command {
 
 	private String[] stopShell;
 
-	private List<CommandListener> listeners;
-	
-	public Command(String[] execShell, String cmd, String[] stopShell, List<CommandListener> listeners) {
+	Command(String[] execShell, String cmd, String[] stopShell) {
 		this.proc = null;
 		this.execShell = execShell;
 		this.stopShell = stopShell;
 		this.cmd = cmd;
-		this.listeners = listeners;
-		this.buffer = new Buffer(100);
+		this.buffer = new CommandSink(100);
 	}
 	
 	public int pid() {
@@ -133,52 +73,45 @@ public class Command {
 		return this.pid;
 	}
 
-	public CommandResult exec(int timeOut, String[]... stdins) throws InterruptedException, ExecutionException, TimeoutException, IOException { // throws Exception {
+	/**
+	 * Executes this command in a synchronous manner.
+	 * if <code>timeOut</code> is set to a value less than or equal to zero, this method
+	 * does never time out.
+	 * Otherwise times out in <code>timeOut</code> milliseconds.
+	 * 
+	 * @param timeOut duration 
+	 * @return
+	 * @throws CommandException The command failed during execution. 
+	 * @throws CommandRuntimeException The command couldn't be executed or this platform isn't suitable for this library.
+	 */
+	public CommandResult exec(int timeOut) throws CommandException {
 		String[] execCmd = new String[this.execShell.length + 1];
 		System.arraycopy(this.execShell, 0, execCmd, 0, this.execShell.length);
 		execCmd[execCmd.length - 1] = this.cmd;
 
 		try {
-			LOGGER.debug("EXEC={}", join(" ", execCmd));
 			this.proc = Runtime.getRuntime().exec(execCmd);
-			Field f = this.proc.getClass().getDeclaredField("pid");
-			f.setAccessible(true);
-			this.pid = Integer.parseInt(f.get( this.proc ).toString());
-			this.stdout = new BufferedReader(new InputStreamReader(this.proc.getInputStream()));
-			this.stderr = new BufferedReader(new InputStreamReader(this.proc.getErrorStream()));
-			readers.add(stdout);
-			readers.add(stderr);
-			this.state = State.STARTED;
-			for (CommandListener l : this.listeners) {
-				l.exec(this);
-			}
-		} catch (NumberFormatException e) {
-			String msg = "This program cannot be run on this platform.";
-			LOGGER.error(msg, e);
-			throw new Error(e);
-		} catch (IllegalAccessException e) {
-			String msg = "This program cannot be run on this platform.";
-			LOGGER.error(msg, e);
-			throw new Error(e);
-		} catch (NoSuchFieldException e) {
-			String msg = "This program cannot be run on this platform.";
-			LOGGER.error(msg, e);
-			throw new Error(e);
-		} catch (SecurityException e) {
-			String msg = "This program cannot be run on this platform.";
-			LOGGER.error(msg, e);
-			throw new Error(e);
+		} catch (IOException e) {
+			throw new CommandException(e);
 		}
+		LOGGER.debug("EXEC={}", join(" ", execCmd));
+		this.pid = getPID(this.proc);
+		
+		this.stdout = new BufferedReader(new InputStreamReader(this.proc.getInputStream()));
+		this.stderr = new BufferedReader(new InputStreamReader(this.proc.getErrorStream()));
+		readers.add(stdout);
+		readers.add(stderr);
+		this.state = State.STARTED;
 		LOGGER.debug("pid={}", this.pid);
 
 		final Callable<CommandResult> callable = new Callable<CommandResult>() {
-			public CommandResult call() throws InterruptedException, IOException {
+			public CommandResult call() throws CommandException {
 				return Command.this.waitFor();
 			}
 		};
 		CommandResult ret;
 		if (timeOut <= 0) {
-			ret = this.waitFor(stdins);
+			ret = this.waitFor();
 		} else {
 			ExecutorService executor = Executors.newSingleThreadExecutor();
 			Future<CommandResult> future = executor.submit(callable);
@@ -186,13 +119,24 @@ public class Command {
 			try {
 				ret = future.get(timeOut, TimeUnit.MILLISECONDS);
 				finished = true;
+			} catch (InterruptedException e) {
+				throw new CommandException(e);
+			} catch (ExecutionException e) {
+				throw new CommandException(e);
+			} catch (TimeoutException e) {
+				throw new CommandTimeoutException(e);
 			} finally {
 				if (!finished) {
 					String[] killCmd = new String[this.stopShell.length + 1];
 					System.arraycopy(this.stopShell, 0, killCmd, 0, this.stopShell.length);
 					killCmd[killCmd.length - 1] = String.format("kill -9 %s", this.pid);
 					LOGGER.debug("KILL={}", join(" ", killCmd));
-					this.proc = Runtime.getRuntime().exec(killCmd);
+					try {
+						this.proc = Runtime.getRuntime().exec(killCmd);
+					} catch (Throwable t) {
+						LOGGER.error("Since the command was started but not finished, commandrunner tried to kill it. Unfortunatelly it couldn't even kill the process.");
+						LOGGER.trace("This exception is ignored. {}", t);
+					}
 				}
 			}
 		}
@@ -200,30 +144,52 @@ public class Command {
 		return ret;
 	}
 	
-	private CommandResult waitFor(String[]... stdins) throws IOException, InterruptedException {
+	private int getPID(Process proc) {
+		int ret = -1;
+		try {
+			Field f = proc.getClass().getDeclaredField("pid");
+			f.setAccessible(true);
+			try {
+				ret = Integer.parseInt(f.get( this.proc ).toString());
+			} finally {
+				f.setAccessible(false);
+			}
+		} catch (IllegalAccessException e) {
+			assert false;
+			String msg = "PID isn't available on this platform. (IllegalAccess) '-1' is used insted.";
+			LOGGER.debug(msg);
+		} catch (NoSuchFieldException e) {
+			String msg = "PID isn't available on this platform. (NoSuchField) '-1' is used insted.";
+			LOGGER.debug(msg);
+		} catch (SecurityException e) {
+			String msg = "PID isn't available on this platform. (Security) '-1' is used insted.";
+			LOGGER.debug(msg);
+		} catch (NumberFormatException e) {
+			String msg = "PID isn't available on this platform. (NumberFormat) '-1' is used insted.";
+			LOGGER.debug(msg);
+		}
+		return ret;
+	}
+	
+	private CommandResult waitFor() throws CommandException {
 		Line line;
-		PrintStream ps = new PrintStream(Command.this.proc.getOutputStream());
 		while ((line = read()) != null) {
 			Command.this.buffer.write(line);
 		}
-		for (String[] stdin : stdins) {
-			for (String l : stdin) {
-				ps.println(l);
-			}
-			ps.flush();
-			while ((line = read()) != null) {
-				Command.this.buffer.write(line);
-			}
+		int exitCode;
+		try {
+			exitCode = Command.this.proc.waitFor();
+		} catch (InterruptedException e) {
+			throw new CommandException(e);
 		}
-		int exitCode = Command.this.proc.waitFor();
 		while ((line = read()) != null) {
 			Command.this.buffer.write(line);
 		}
-		CommandResult ret = new CommandResult(exitCode, Command.this.buffer);
+		CommandResult ret = new CommandResult(this.cmd, exitCode, Command.this.buffer);
 		return ret;
 	}
 
-	private Line read() throws IOException {
+	private Line read() throws CommandException {
 		Line ret = null;
 		int wait = 0;
 		// On Mac, without this retry logic, this method blocks when we read a big data (> 10kb).
@@ -233,24 +199,29 @@ public class Command {
 		return ret;
 	}
 	
-	private Line read(int wait) throws IOException {
+	private Line read(int wait) throws CommandException {
 		Line ret = null;
 		for (BufferedReader r : readers) {
 			try {
 				Thread.sleep(wait);
-			} catch (Exception e) {
+			} catch (InterruptedException e) {
+				throw new CommandException(e);
 			}	
 			SourceType sourceType = sourceTypeOf(r);
 			LOGGER.trace("Trying {}", sourceType);
-			if (r.ready()) {
-				LOGGER.trace("   {} is ready.", sourceType);
-				String l = r.readLine();
-				if (l == null) {
-					finishedReaders.add(r);
+			try {
+				if (r.ready()) {
+					LOGGER.trace("   {} is ready.", sourceType);
+					String l = r.readLine();
+					if (l == null) {
+						finishedReaders.add(r);
+					}
+					
+					LOGGER.debug("{}, {}", sourceType, l);
+					ret = new Line(sourceType, l);
 				}
-				
-				LOGGER.debug("{}, {}", sourceType, l);
-				ret = new Line(sourceType, l);
+			} catch (IOException e) {
+				throw new CommandException(e);
 			}
 		}
 		LOGGER.trace("Line read:{}", ret);
