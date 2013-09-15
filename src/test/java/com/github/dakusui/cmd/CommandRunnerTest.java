@@ -273,7 +273,7 @@ public class CommandRunnerTest {
 	}
 
 	@Test(timeout=60000)
-	public void test_18() throws Exception {
+	public void runLocal_output10MdataToStdout() throws Exception {
 		LOGGER.info("test-18");
 		String cmd = format("cat /dev/zero | head -c 10000000 | %s 80", base64());
 
