@@ -1,30 +1,32 @@
 package com.github.dakusui.cmd;
 
-import com.github.dakusui.cmd.Command.SourceType;
-import com.github.dakusui.cmd.io.CommandSink;
 
 public class CommandResult {
 
-	private CommandSink buffer;
 	private int    exitCode;
 	private String commandLine;
+	private String stdout;
+	private String stderr;
+	private String stdouterr;
 
-	public CommandResult(String commandLine, int exitCode, CommandSink buffer) {
+	public CommandResult(String commandLine, int exitCode, String stdout, String stderr, String stdouterr) {
 		this.commandLine = commandLine;
-		this.buffer = buffer;
 		this.exitCode = exitCode;
+		this.stdout = stdout;
+		this.stderr = stderr;
+		this.stdouterr = stdouterr;
 	}
 	
 	public String stdout() {
-		return this.buffer.asString(SourceType.STDOUT);
+		return this.stdout;
 	}
 
 	public String stderr() {
-		return this.buffer.asString(SourceType.STDERR);
+		return this.stderr;
 	}
 
-	public String asString() {
-		return this.buffer.asString(null);
+	public String stdouterr() {
+		return this.stdouterr;
 	}
 	
 	public int exitCode() {

@@ -3,6 +3,7 @@ package com.github.dakusui.cmd;
 import static java.lang.String.format;
 import junit.framework.TestCase;
 
+import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,55 +13,70 @@ import com.github.dakusui.cmd.exceptions.CommandTimeoutException;
 public class CommandRunnerTest {
 	private static Logger LOGGER = LoggerFactory.getLogger(CommandRunnerTest.class);
 	
-	@Test
-	public void test_00() throws Exception {
-		LOGGER.info("test_00");
-		TestCase.assertEquals("hello", CommandFactory.runLocal("echo hello").stdout());
+	protected void assertCommandResult(String stdout, String stderr, String stdouterr, int exitCode, CommandResult result) {
+		Assert.assertEquals(stdout,    result.stdout());
+		Assert.assertEquals(stderr,    result.stderr());
+		Assert.assertEquals(stdouterr, result.stdouterr());
+		Assert.assertEquals(exitCode,  result.exitCode());
 	}
 
 	@Test
-	public void test_01() throws Exception {
-		LOGGER.info("test_01 - 1");
-		TestCase.assertEquals("hello", CommandFactory.runLocal("echo hello").stdout());
-		LOGGER.info("test_01 - 2");
-		TestCase.assertEquals("hello", CommandFactory.runLocal("echo hello").stdout());
+	public void runLocal_echo_hello() throws Exception {
+		CommandResult result = CommandFactory.runLocal("echo hello");
+		assertCommandResult("hello", "", "hello", 0, result);
 	}
 
 	@Test
-	public void test_02() throws Exception {
-		LOGGER.info("test_02");
-		CommandResult result = CommandFactory.runLocal("cat NNN"); // non existing file
-		TestCase.assertEquals("", result.stdout());
-		TestCase.assertEquals("cat: NNN: No such file or directory", result.stderr());
-		TestCase.assertEquals(1, result.exitCode());
+	public void runLocal_echo_hello_$$_echo_hello() throws Exception {
+		CommandResult result = CommandFactory.runLocal("echo hello && echo hello");
+		assertCommandResult("hello\nhello", "", "hello\nhello", 0, result);
 	}
 
 	@Test
-	public void test_03() throws Exception {
+	public void runLocal_echo_hello_twice() throws Exception {
+		CommandResult result;
+		LOGGER.info("stage - 1");
+		result = CommandFactory.runLocal("echo hello");
+		assertCommandResult("hello", "", "hello", 0, result);
+		LOGGER.info("stage - 2");
+		result = CommandFactory.runLocal("echo hello");
+		assertCommandResult("hello", "", "hello", 0, result);
+	}
+
+	@Test
+	public void runLocal_execFailingCommand() throws Exception {
+		CommandResult result;
+		// non existing file "NNN"
+		result = CommandFactory.runLocal("cat NNN");
+		assertCommandResult(
+				"", 
+				"cat: NNN: No such file or directory", 
+				"cat: NNN: No such file or directory", 
+				1, 
+				result
+		);
+	}
+
+	@Test
+	public void runLocal_echo_WORLD_tostderr() throws Exception {
+		CommandResult result;
 		LOGGER.info("test_03");
-		CommandResult result = CommandFactory.runLocal("echo WORLD");
-		TestCase.assertEquals("WORLD", result.stdout());
-	}
-	
-	@Test
-	public void test_04() throws Exception {
-		LOGGER.info("test_03");
-		CommandResult result = CommandFactory.runLocal("echo WORLD >&2");
-		TestCase.assertEquals("WORLD", result.stderr());
+		result = CommandFactory.runLocal("echo WORLD >&2");
+		assertCommandResult("", "WORLD", "WORLD", 0, result);
 	}
 
 	@Test(expected=CommandTimeoutException.class)
-	public void test_06() throws Exception {
+	public void runLocal_with_1000msec_timesout_expectedly() throws Exception {
 		LOGGER.info("test-06");
 		CommandResult result = CommandFactory.runLocal(1000, "sleep 10");
 		LOGGER.debug("result={}", result);
 	}
 
 	@Test
-	public void test_07() throws Exception {
+	public void runLocal_sleep1_$$_echo_hi_MakeSureLongCommandWorksCorrectly() throws Exception {
 		LOGGER.info("test-07");
-		CommandResult result = CommandFactory.runLocal(2000, "sleep 1 && echo hi");
-		TestCase.assertEquals("hi", result.asString());
+		CommandResult result = CommandFactory.runLocal("sleep 1 && echo hi");
+		assertCommandResult("hi", "", "hi", 0, result);
 	}
 	
 	
@@ -231,29 +247,27 @@ public class CommandRunnerTest {
 	}
 
 	@Test(timeout=5000)
-	public void test_16() throws Exception {
-		LOGGER.info("test-16");
+	public void runLocal_outputLargeDataToBothStdoutAndStderr_1() throws Exception {
 		String cmd = format("cat /dev/zero | head -c 100000 | %s 80 >&2 && cat /dev/zero | head -c 100000 | %s 80", base64(), base64());
-
+		System.out.println(cmd);
 		String expected = buildExpectedData(80, 54);
 		CommandResult result = CommandFactory.runLocal(cmd);
 		// AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 		// 123456789012345678901234567890123456789012345678901234
 		TestCase.assertEquals(expected, result.stdout());
-		TestCase.assertEquals("", result.stderr());
+		TestCase.assertEquals(expected, result.stderr());
 		TestCase.assertEquals(0,  result.exitCode());
 	}
 
 	@Test(timeout=5000)
-	public void test_17() throws Exception {
-		LOGGER.info("test-17");
+	public void runLocal_outputLargeDataToBothStdoutAndStderr_2() throws Exception {
 		String cmd = format("cat /dev/zero | head -c 100000 | %s 80 && cat /dev/zero | head -c 100000 | %s 80 >&2", base64(), base64());
 
 		String expected = buildExpectedData(80, 54);
 		CommandResult result = CommandFactory.runLocal(cmd);
 		// AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 		// 123456789012345678901234567890123456789012345678901234
-		TestCase.assertEquals("", result.stdout());
+		TestCase.assertEquals(expected, result.stdout());
 		TestCase.assertEquals(expected, result.stderr());
 		TestCase.assertEquals(0,  result.exitCode());
 	}

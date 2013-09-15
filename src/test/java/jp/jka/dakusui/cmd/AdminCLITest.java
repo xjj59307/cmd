@@ -19,7 +19,7 @@ public class AdminCLITest {
 						"cd /home/ngsuser &&  export JAVA_HOME=/usr/lib/jvm/ngs-jdk6 && which admincli && admincli tg && admincli ts -f /tmp/tmp.fhblBC6Az0 -ch 614902946"
 						);
 		
-		System.out.println(result.asString());
+		System.out.println(result.stdouterr());
 		System.out.println(result.exitCode());
 		assertTrue(0 == result.exitCode());
 	}

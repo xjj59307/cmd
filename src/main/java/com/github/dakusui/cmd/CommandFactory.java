@@ -10,12 +10,12 @@ public class CommandFactory {
 	private CommandFactory() {
 	}
 	
-	public static CommandResult run(int timeout, String[] execShell, String[] stopShell, String command) throws CommandException {
-		Command cmd = new Command(execShell, command, stopShell);
+	public static CommandResult run(int timeout, String[] execShell, String command) throws CommandException {
+		Command cmd = new Command(execShell, command);
 		return cmd.exec(timeout);
 	}
 	public static CommandResult runLocal(int timeout, String command) throws CommandException {
-		return run(timeout, LOCAL_SHELL, LOCAL_SHELL, command);
+		return run(timeout, LOCAL_SHELL, command);
 	}
 	
 	public static CommandResult runLocal(String command) throws CommandException {
@@ -34,7 +34,6 @@ public class CommandFactory {
 							"ssh", "-o", "StrictHostKeyChecking=no", 
 							String.format("%s@%s", userName, hostName)
 					},
-					LOCAL_SHELL,
 					command 
 			);
 		}
@@ -46,7 +45,6 @@ public class CommandFactory {
 						"-o", "StrictHostKeyChecking=no", 
 						String.format("%s@%s", userName, hostName)
 				},
-				LOCAL_SHELL,
 				command 
 		);
 	}
