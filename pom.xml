@@ -3,7 +3,7 @@
 
   <groupId>com.github.dakusui</groupId>
   <artifactId>commandrunner</artifactId>
-  <version>0.0.3-SNAPSHOT</version>
+  <version>0.0.3</version>
   <description>Command line runner library for Java</description>
   <packaging>jar</packaging>
 
