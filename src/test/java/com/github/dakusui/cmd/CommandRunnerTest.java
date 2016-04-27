@@ -22,13 +22,13 @@ public class CommandRunnerTest {
 
 	@Test
 	public void runLocal_echo_hello() throws Exception {
-		CommandResult result = CommandFactory.runLocal("echo hello");
+		CommandResult result = CommandUtils.runLocal("echo hello");
 		assertCommandResult("hello", "", "hello", 0, result);
 	}
 
 	@Test
 	public void runLocal_echo_hello_$$_echo_hello() throws Exception {
-		CommandResult result = CommandFactory.runLocal("echo hello && echo hello");
+		CommandResult result = CommandUtils.runLocal("echo hello && echo hello");
 		assertCommandResult("hello\nhello", "", "hello\nhello", 0, result);
 	}
 
@@ -36,10 +36,10 @@ public class CommandRunnerTest {
 	public void runLocal_echo_hello_twice() throws Exception {
 		CommandResult result;
 		LOGGER.info("stage - 1");
-		result = CommandFactory.runLocal("echo hello");
+		result = CommandUtils.runLocal("echo hello");
 		assertCommandResult("hello", "", "hello", 0, result);
 		LOGGER.info("stage - 2");
-		result = CommandFactory.runLocal("echo hello");
+		result = CommandUtils.runLocal("echo hello");
 		assertCommandResult("hello", "", "hello", 0, result);
 	}
 
@@ -47,7 +47,7 @@ public class CommandRunnerTest {
 	public void runLocal_execFailingCommand() throws Exception {
 		CommandResult result;
 		// non existing file "NNN"
-		result = CommandFactory.runLocal("cat NNN");
+		result = CommandUtils.runLocal("cat NNN");
 		assertCommandResult(
 				"", 
 				"cat: NNN: No such file or directory", 
@@ -61,21 +61,21 @@ public class CommandRunnerTest {
 	public void runLocal_echo_WORLD_tostderr() throws Exception {
 		CommandResult result;
 		LOGGER.info("test_03");
-		result = CommandFactory.runLocal("echo WORLD >&2");
+		result = CommandUtils.runLocal("echo WORLD >&2");
 		assertCommandResult("", "WORLD", "WORLD", 0, result);
 	}
 
 	@Test(expected=CommandTimeoutException.class)
 	public void runLocal_with_1000msec_timesout_expectedly() throws Exception {
 		LOGGER.info("test-06");
-		CommandResult result = CommandFactory.runLocal(1000, "sleep 10");
+		CommandResult result = CommandUtils.runLocal(1000, "sleep 10");
 		LOGGER.debug("result={}", result);
 	}
 
 	@Test
 	public void runLocal_sleep1_$$_echo_hi_MakeSureLongCommandWorksCorrectly() throws Exception {
 		LOGGER.info("test-07");
-		CommandResult result = CommandFactory.runLocal("sleep 1 && echo hi");
+		CommandResult result = CommandUtils.runLocal("sleep 1 && echo hi");
 		assertCommandResult("hi", "", "hi", 0, result);
 	}
 	
@@ -98,7 +98,7 @@ public class CommandRunnerTest {
 				expected += System.getProperty("line.separator");
 			}
 		}
-		CommandResult result = CommandFactory.runLocal(cmd);
+		CommandResult result = CommandUtils.runLocal(cmd);
 		TestCase.assertEquals(expected, result.stdout());
 		TestCase.assertEquals("", result.stderr());
 		TestCase.assertEquals(0,  result.exitCode());
@@ -123,7 +123,7 @@ public class CommandRunnerTest {
 			}
 		}
 
-		CommandResult result = CommandFactory.runLocal(cmd);
+		CommandResult result = CommandUtils.runLocal(cmd);
 		TestCase.assertEquals(expected, result.stdout());
 		TestCase.assertEquals("", result.stderr());
 		TestCase.assertEquals(0,  result.exitCode());
@@ -148,7 +148,7 @@ public class CommandRunnerTest {
 			}
 		}
 
-		CommandResult result = CommandFactory.runLocal(cmd);
+		CommandResult result = CommandUtils.runLocal(cmd);
 		TestCase.assertEquals(expected, result.stdout());
 		TestCase.assertEquals("", result.stderr());
 		TestCase.assertEquals(0,  result.exitCode());
@@ -173,7 +173,7 @@ public class CommandRunnerTest {
 			}
 		}
 
-		CommandResult result = CommandFactory.runLocal(cmd);
+		CommandResult result = CommandUtils.runLocal(cmd);
 		TestCase.assertEquals(expected, result.stdout());
 		TestCase.assertEquals("", result.stderr());
 		TestCase.assertEquals(0,  result.exitCode());
@@ -198,7 +198,7 @@ public class CommandRunnerTest {
 			}
 		}
 
-		CommandResult result = CommandFactory.runLocal(cmd);
+		CommandResult result = CommandUtils.runLocal(cmd);
 		TestCase.assertEquals(expected, result.stdout());
 		TestCase.assertEquals("", result.stderr());
 		TestCase.assertEquals(0,  result.exitCode());
@@ -212,7 +212,7 @@ public class CommandRunnerTest {
 		String expected = buildExpectedData(80, 54);
 		// AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 		// 123456789012345678901234567890123456789012345678901234
-		CommandResult result = CommandFactory.runLocal(cmd);
+		CommandResult result = CommandUtils.runLocal(cmd);
 		TestCase.assertEquals(expected, result.stdout());
 		TestCase.assertEquals("", result.stderr());
 		TestCase.assertEquals(0,  result.exitCode());
@@ -224,7 +224,7 @@ public class CommandRunnerTest {
 		String cmd = format("cat /dev/zero | head -c 100000 | %s 80", base64());
 
 		String expected = buildExpectedData(80, 54);
-		CommandResult result = CommandFactory.runLocal(cmd);
+		CommandResult result = CommandUtils.runLocal(cmd);
 		// AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 		// 123456789012345678901234567890123456789012345678901234
 		TestCase.assertEquals(expected, result.stdout());
@@ -238,7 +238,7 @@ public class CommandRunnerTest {
 		String cmd = format("cat /dev/zero | head -c 100000 | %s 80 >&2", base64());
 
 		String expected = buildExpectedData(80, 54);
-		CommandResult result = CommandFactory.runLocal(cmd);
+		CommandResult result = CommandUtils.runLocal(cmd);
 		// AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 		// 123456789012345678901234567890123456789012345678901234
 		TestCase.assertEquals("", result.stdout());
@@ -251,7 +251,7 @@ public class CommandRunnerTest {
 		String cmd = format("cat /dev/zero | head -c 100000 | %s 80 >&2 && cat /dev/zero | head -c 100000 | %s 80", base64(), base64());
 		System.out.println(cmd);
 		String expected = buildExpectedData(80, 54);
-		CommandResult result = CommandFactory.runLocal(cmd);
+		CommandResult result = CommandUtils.runLocal(cmd);
 		// AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 		// 123456789012345678901234567890123456789012345678901234
 		TestCase.assertEquals(expected, result.stdout());
@@ -264,7 +264,7 @@ public class CommandRunnerTest {
 		String cmd = format("cat /dev/zero | head -c 100000 | %s 80 && cat /dev/zero | head -c 100000 | %s 80 >&2", base64(), base64());
 
 		String expected = buildExpectedData(80, 54);
-		CommandResult result = CommandFactory.runLocal(cmd);
+		CommandResult result = CommandUtils.runLocal(cmd);
 		// AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 		// 123456789012345678901234567890123456789012345678901234
 		TestCase.assertEquals(expected, result.stdout());
@@ -278,7 +278,7 @@ public class CommandRunnerTest {
 		String cmd = format("cat /dev/zero | head -c 10000000 | %s 80", base64());
 
 		String expected = buildExpectedData(80, 54);
-		CommandResult result = CommandFactory.runLocal(cmd);
+		CommandResult result = CommandUtils.runLocal(cmd);
 		// AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 		// 123456789012345678901234567890123456789012345678901234
 		TestCase.assertEquals(expected, result.stdout());
@@ -310,11 +310,11 @@ public class CommandRunnerTest {
 		LOGGER.info("test-19");
 		boolean finished = false;
 		try {
-			String userName = CommandFactory.runLocal("whoami").stdout();
-			String hostName = CommandFactory.runLocal("hostname").stdout();
-			String privKey  = String.format("%s/.ssh/id_rsa", CommandFactory.runLocal("echo $HOME").stdout());
+			String userName = CommandUtils.runLocal("whoami").stdout();
+			String hostName = CommandUtils.runLocal("hostname").stdout();
+			String privKey  = String.format("%s/.ssh/id_rsa", CommandUtils.runLocal("echo $HOME").stdout());
 			
-			CommandResult result = CommandFactory.runRemote(userName, hostName, privKey, "echo hello");
+			CommandResult result = CommandUtils.runRemote(userName, hostName, privKey, "echo hello");
 			TestCase.assertEquals("hello", result.stdout());
 			TestCase.assertEquals("", result.stderr());
 			TestCase.assertEquals(0, result.exitCode());
@@ -329,10 +329,10 @@ public class CommandRunnerTest {
 	@Test
 	public void test_20() throws Exception {
 		LOGGER.info("test-20");
-		String userName = CommandFactory.runLocal("whoami").stdout();
-		String hostName = CommandFactory.runLocal("hostname").stdout();
+		String userName = CommandUtils.runLocal("whoami").stdout();
+		String hostName = CommandUtils.runLocal("hostname").stdout();
 		
-		CommandResult result = CommandFactory.runRemote(userName, hostName, null, "echo hello");
+		CommandResult result = CommandUtils.runRemote(userName, hostName, null, "echo hello");
 		TestCase.assertEquals("hello", result.stdout());
 		TestCase.assertEquals("", result.stderr());
 		TestCase.assertEquals(0, result.exitCode());
@@ -346,12 +346,12 @@ public class CommandRunnerTest {
 		LOGGER.info("test-21");
 		PID = -1;
 		try {
-			CommandFactory.runLocal(1000, "sleep 10");
+			CommandUtils.runLocal(1000, "sleep 10");
 			TestCase.fail("The command didn't time out in 1 sec!");
 		} finally {
 			Thread.sleep(100);
 			CommandResult result;
-			result = CommandFactory.runLocal(String.format("ps -o pid= -p %s", PID));
+			result = CommandUtils.runLocal(String.format("ps -o pid= -p %s", PID));
 			TestCase.assertEquals("", result.stdout()); // make sure the process is killed.
 			TestCase.assertEquals(1, result.exitCode());
 		}
@@ -362,15 +362,15 @@ public class CommandRunnerTest {
 		LOGGER.info("test-22");
 		PID = -1;
 		try {
-			String userName = CommandFactory.runLocal("whoami").stdout();
-			String hostName = CommandFactory.runLocal("hostname").stdout();
+			String userName = CommandUtils.runLocal("whoami").stdout();
+			String hostName = CommandUtils.runLocal("hostname").stdout();
 			
-			CommandFactory.runRemote(1000, userName, hostName, null, "sleep 10");
+			CommandUtils.runRemote(1000, userName, hostName, null, "sleep 10");
 			TestCase.fail("The command didn't time out in 1 sec!");
 		} finally {
 			Thread.sleep(100);
 			CommandResult result;
-			result = CommandFactory.runLocal(String.format("ps -o pid= -p %s", PID));
+			result = CommandUtils.runLocal(String.format("ps -o pid= -p %s", PID));
 			TestCase.assertEquals("", result.stdout()); // make sure the process is killed.
 			TestCase.assertEquals(1, result.exitCode());
 		}
