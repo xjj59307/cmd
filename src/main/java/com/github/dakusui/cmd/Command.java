@@ -54,6 +54,23 @@ public class Command {
     return this.pid;
   }
 
+  private void startConsumingOutput() {
+    this.stdoutRingBuffer = new RingBufferedLineWriter(100);
+    this.stderrRingBuffer = new RingBufferedLineWriter(100);
+    this.stdouterrRingBuffer = new RingBufferedLineWriter(100);
+    this.stdout = new LineConsumer(new BasicLineReader(Charset.defaultCharset(), 0, proc.getInputStream()));
+    this.stdout.addLineWriter(LoggerLineWriter.DEBUG);
+    this.stdout.addLineWriter(stdoutRingBuffer);
+    this.stdout.addLineWriter(stdouterrRingBuffer);
+    this.stderr = new LineConsumer(new BasicLineReader(Charset.defaultCharset(), 0, proc.getErrorStream()));
+    this.stderr.addLineWriter(LoggerLineWriter.DEBUG);
+    this.stderr.addLineWriter(stderrRingBuffer);
+    this.stderr.addLineWriter(stdouterrRingBuffer);
+
+    this.stdout.start();
+    this.stderr.start();
+  }
+
   /**
    * Executes this command in a synchronous manner.
    * if <code>timeOut</code> is set to a value less than or equal to zero, this method
@@ -71,6 +88,7 @@ public class Command {
 
     try {
       this.proc = Runtime.getRuntime().exec(execCmd);
+      this.startConsumingOutput();
     } catch (IOException e) {
       throw new CommandException(e);
     }
@@ -87,20 +105,6 @@ public class Command {
     };
     CommandResult ret;
     if (timeOut <= 0) {
-      this.stdoutRingBuffer = new RingBufferedLineWriter(100);
-      this.stderrRingBuffer = new RingBufferedLineWriter(100);
-      this.stdouterrRingBuffer = new RingBufferedLineWriter(100);
-      this.stdout = new LineConsumer(new BasicLineReader(Charset.defaultCharset(), 0, proc.getInputStream()));
-      this.stdout.addLineWriter(LoggerLineWriter.DEBUG);
-      this.stdout.addLineWriter(stdoutRingBuffer);
-      this.stdout.addLineWriter(stdouterrRingBuffer);
-      this.stderr = new LineConsumer(new BasicLineReader(Charset.defaultCharset(), 0, proc.getErrorStream()));
-      this.stderr.addLineWriter(LoggerLineWriter.DEBUG);
-      this.stderr.addLineWriter(stderrRingBuffer);
-      this.stderr.addLineWriter(stdouterrRingBuffer);
-
-      this.stdout.start();
-      this.stderr.start();
       ret = this.waitFor();
     } else {
       ExecutorService executor = Executors.newSingleThreadExecutor();

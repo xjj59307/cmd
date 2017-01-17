@@ -364,7 +364,7 @@ public class CommandRunnerTest {
 		try {
 			String userName = CommandUtils.runLocal("whoami").stdout();
 			String hostName = CommandUtils.runLocal("hostname").stdout();
-			
+
 			CommandUtils.runRemote(1000, userName, hostName, null, "sleep 10");
 			TestCase.fail("The command didn't time out in 1 sec!");
 		} finally {
@@ -375,7 +375,19 @@ public class CommandRunnerTest {
 			TestCase.assertEquals(1, result.exitCode());
 		}
 	}
-	
+
+	@Test
+	public void test_23() throws Exception {
+		LOGGER.info("test-23");
+		String userName = CommandUtils.runLocal("whoami").stdout();
+		String hostName = CommandUtils.runLocal("hostname").stdout();
+
+		CommandResult result = CommandUtils.runRemote(10000, userName, hostName, null, "echo hello");
+		TestCase.assertEquals("hello", result.stdout());
+		TestCase.assertEquals("", result.stderr());
+		TestCase.assertEquals(0, result.exitCode());
+	}
+
 	static String systemName() {
 		return System.getProperty("os.name");
 	}
