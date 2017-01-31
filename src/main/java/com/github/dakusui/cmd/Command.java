@@ -117,6 +117,8 @@ public class Command {
         throw new CommandException(e);
       } catch (TimeoutException e) {
         throw new CommandTimeoutException(e);
+      } finally {
+        executor.shutdownNow();
       }
     }
     this.state = State.FINISHED;
