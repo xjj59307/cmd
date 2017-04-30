@@ -41,7 +41,7 @@ public class LineConsumer extends Thread {
 		this.writers.add(writer);
 	}
 	
-	boolean consumeLine() throws CommandException {
+	private boolean consumeLine() throws CommandException {
 		String line = reader.read();
 		if (line == null) return false;
 		for (LineWriter w : this.writers) {

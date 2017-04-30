@@ -29,11 +29,11 @@ public enum LoggerLineWriter implements LineWriter {
 		}
 	},
 	TRACE {
-
 		@Override
 		public void write(String line) {
 			LOGGER.trace(line);
 		}
 	};
+
 	private static final Logger LOGGER = LoggerFactory.getLogger(LoggerLineWriter.class);
 }

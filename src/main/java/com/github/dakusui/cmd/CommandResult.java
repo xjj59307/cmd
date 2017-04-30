@@ -3,7 +3,7 @@ package com.github.dakusui.cmd;
 
 public class CommandResult {
 
-  private int    exitCode;
+  private int exitCode;
   private String commandLine;
   private String stdout;
   private String stderr;

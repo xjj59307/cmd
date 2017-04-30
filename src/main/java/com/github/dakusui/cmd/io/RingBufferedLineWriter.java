@@ -8,6 +8,7 @@ public class RingBufferedLineWriter implements LineWriter {
 		this.ringBuffer = new String[size];
 		this.next = 0;
 	}
+
 	@Override
 	public void write(String line) {
 		this.ringBuffer[this.next] = line;
