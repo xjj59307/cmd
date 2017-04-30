@@ -2,13 +2,18 @@ package com.github.dakusui.cmd;
 
 import com.github.dakusui.cmd.exceptions.CommandException;
 
+import java.util.stream.Stream;
+
 public enum CommandUtils {
 	;
 	private static final String[] LOCAL_SHELL = new String[]{"sh", "-c"};
 
 	public static CommandResult run(int timeout, String[] execShell, String command) throws CommandException {
-		Command cmd = new Command(execShell, command);
-		return cmd.exec(timeout);
+		return new Command(execShell, command).exec(timeout);
+	}
+
+	public static Stream<String> runAsnyc(String command) throws CommandException {
+		return new Command(LOCAL_SHELL, command).execAsync();
 	}
 
 	public static CommandResult runLocal(int timeout, String command) throws CommandException {

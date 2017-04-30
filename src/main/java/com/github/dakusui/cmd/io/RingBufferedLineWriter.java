@@ -18,6 +18,9 @@ public class RingBufferedLineWriter implements LineWriter {
 		this.next = (this.next + 1) % this.ringBuffer.length;
 	}
 
+	@Override
+	public void finish() {}
+
 	public String asString() {
 		StringBuffer b = new StringBuffer();
 		for (int i = 0; i < ringBuffer.length; i++) {

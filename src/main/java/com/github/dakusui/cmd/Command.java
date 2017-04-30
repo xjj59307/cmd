@@ -4,6 +4,7 @@ import com.github.dakusui.cmd.exceptions.CommandException;
 import com.github.dakusui.cmd.exceptions.CommandTimeoutException;
 import com.github.dakusui.cmd.io.BasicLineReader;
 import com.github.dakusui.cmd.io.LineConsumer;
+import com.github.dakusui.cmd.io.LineWriter;
 import com.github.dakusui.cmd.io.LoggerLineWriter;
 import com.github.dakusui.cmd.io.RingBufferedLineWriter;
 import org.slf4j.Logger;
@@ -12,13 +13,23 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.charset.Charset;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.Optional;
+import java.util.Spliterator;
+import java.util.Spliterators;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 public class Command {
 
@@ -49,46 +60,109 @@ public class Command {
 
 	public int getPid() {
 		if (pid == -1) {
-			throw new IllegalStateException(String.format("This command(%s) is not yet started.", this.cmd));
+			throw new IllegalStateException(String.format("This command(%s) is not yet started.", cmd));
 		}
-		return this.pid;
+		return pid;
 	}
 
-	private void startConsumingOutput() {
-		this.stdoutRingBuffer = new RingBufferedLineWriter(100);
-		this.stderrRingBuffer = new RingBufferedLineWriter(100);
-		this.stdouterrRingBuffer = new RingBufferedLineWriter(100);
+	private void consumeStreamInBackground(Iterable<LineWriter> stdoutWriters, Iterable<LineWriter> stderrWriters) {
+		stdout = new LineConsumer(new BasicLineReader(Charset.defaultCharset(), proc.getInputStream()));
+		stdoutWriters.forEach(stdout::addLineWriter);
+		stdout.addLineWriter(LoggerLineWriter.DEBUG);
 
-		this.stdout = new LineConsumer(new BasicLineReader(Charset.defaultCharset(), proc.getInputStream()));
-		Stream.of(
-				LoggerLineWriter.DEBUG,
-				stdoutRingBuffer,
-				stdouterrRingBuffer
-		).forEach(this.stdout::addLineWriter);
+		stderr = new LineConsumer(new BasicLineReader(Charset.defaultCharset(), proc.getErrorStream()));
+		stderrWriters.forEach(stderr::addLineWriter);
+		stderr.addLineWriter(LoggerLineWriter.DEBUG);
 
-		this.stderr = new LineConsumer(new BasicLineReader(Charset.defaultCharset(), proc.getErrorStream()));
-		Stream.of(
-				LoggerLineWriter.DEBUG,
-				stderrRingBuffer,
-				stdouterrRingBuffer
-		).forEach(this.stderr::addLineWriter);
-
-		this.stdout.start();
-		this.stderr.start();
+		stdout.start();
+		stderr.start();
 	}
 
-	public CommandResult exec(int timeOut) throws CommandException {
+	public Stream<String> execAsync() {
+		execCmdInBackground();
+
+		// Optional.empty is a poison object.
+		BlockingQueue<Optional<String>> queue = new ArrayBlockingQueue<>(100);
+		AtomicBoolean finishOnce = new AtomicBoolean(false);
+
+		LineWriter writer = new LineWriter() {
+			@Override
+			public void write(String line) {
+				try {
+					queue.put(Optional.of(line));
+				} catch (InterruptedException exception) {
+					Thread.currentThread().interrupt();
+					throw new CommandException(exception);
+				}
+			}
+
+			@Override
+			public void finish() {
+				try {
+					synchronized (finishOnce) {
+						if (finishOnce.get()) {
+							queue.put(Optional.empty());
+						} else {
+							finishOnce.set(true);
+						}
+					}
+				} catch (InterruptedException exception) {
+					Thread.currentThread().interrupt();
+					throw new CommandException(exception);
+				}
+			}
+		};
+
+		consumeStreamInBackground(
+				Collections.singletonList(writer),
+				Collections.singletonList(writer)
+		);
+
+		return StreamSupport.stream(Spliterators.spliteratorUnknownSize(new Iterator<String>() {
+			private String line;
+
+			@Override
+			public boolean hasNext() {
+				try {
+					Optional<String> optional = queue.take();
+					optional.ifPresent((value) -> line = value);
+					return optional.isPresent();
+				} catch (InterruptedException exception) {
+					Thread.currentThread().interrupt();
+					throw new CommandException(exception);
+				}
+			}
+
+			@Override
+			public String next() {
+				return line;
+			}
+		}, Spliterator.IMMUTABLE), false);
+	}
+
+	private void execCmdInBackground() {
 		String[] execCmd = new String[execShell.length + 1];
-		System.arraycopy(this.execShell, 0, execCmd, 0, this.execShell.length);
+		System.arraycopy(execShell, 0, execCmd, 0, execShell.length);
 		execCmd[execCmd.length - 1] = cmd;
 
 		try {
 			proc = Runtime.getRuntime().exec(execCmd);
 			pid = getPID();
-			startConsumingOutput();
 		} catch (IOException e) {
 			throw new CommandException(e);
 		}
+	}
+
+	public CommandResult exec(int timeOut) throws CommandException {
+		execCmdInBackground();
+
+		stdoutRingBuffer = new RingBufferedLineWriter(100);
+		stderrRingBuffer = new RingBufferedLineWriter(100);
+		stdouterrRingBuffer = new RingBufferedLineWriter(100);
+		consumeStreamInBackground(
+				Arrays.asList(stdoutRingBuffer, stdouterrRingBuffer),
+				Arrays.asList(stderrRingBuffer, stdouterrRingBuffer)
+		);
 
 		if (timeOut <= 0) {
 			return waitFor();
@@ -117,7 +191,7 @@ public class Command {
 			Field f = proc.getClass().getDeclaredField("pid");
 			f.setAccessible(true);
 			try {
-				ret = Integer.parseInt(f.get(this.proc).toString());
+				ret = Integer.parseInt(f.get(proc).toString());
 			} finally {
 				f.setAccessible(false);
 			}
@@ -145,11 +219,11 @@ public class Command {
 			stdout.join();
 
 			return new CommandResult(
-					this.cmd,
+					cmd,
 					exitCode,
-					this.stdoutRingBuffer.asString(),
-					this.stderrRingBuffer.asString(),
-					this.stdouterrRingBuffer.asString()
+					stdoutRingBuffer.asString(),
+					stderrRingBuffer.asString(),
+					stdouterrRingBuffer.asString()
 			);
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();

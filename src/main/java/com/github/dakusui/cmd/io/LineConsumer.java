@@ -14,7 +14,7 @@ public class LineConsumer extends Thread {
 
 	private LineReader reader;
 
-	private List<LineWriter> writers = new LinkedList<LineWriter>();
+	private List<LineWriter> writers = new LinkedList<>();
 
 	public LineConsumer(LineReader reader) {
 		this.reader = reader;
@@ -42,10 +42,14 @@ public class LineConsumer extends Thread {
 
 	private boolean consumeLine() throws CommandException {
 		String line = reader.read();
-		if (line == null) return false;
-		for (LineWriter w : this.writers) {
-			w.write(line);
+
+		if (line == null) {
+			writers.forEach(LineWriter::finish);
+			return false;
 		}
+
+		writers.forEach((writer) -> writer.write(line));
+
 		return true;
 	}
 }
