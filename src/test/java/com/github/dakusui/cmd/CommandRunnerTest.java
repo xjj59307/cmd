@@ -11,7 +11,10 @@ import org.slf4j.LoggerFactory;
 import com.github.dakusui.cmd.exceptions.CommandTimeoutException;
 
 public class CommandRunnerTest {
+
 	private static Logger LOGGER = LoggerFactory.getLogger(CommandRunnerTest.class);
+
+	private static String LOCAL_HOST = "localhost";
 	
 	protected void assertCommandResult(String stdout, String stderr, String stdouterr, int exitCode, CommandResult result) {
 		Assert.assertEquals(stdout,    result.stdout());
@@ -311,10 +314,9 @@ public class CommandRunnerTest {
 		boolean finished = false;
 		try {
 			String userName = CommandUtils.runLocal("whoami").stdout();
-			String hostName = CommandUtils.runLocal("hostname").stdout();
 			String privKey  = String.format("%s/.ssh/id_rsa", CommandUtils.runLocal("echo $HOME").stdout());
 			
-			CommandResult result = CommandUtils.runRemote(userName, hostName, privKey, "echo hello");
+			CommandResult result = CommandUtils.runRemote(userName, LOCAL_HOST, privKey, "echo hello");
 			TestCase.assertEquals("hello", result.stdout());
 			TestCase.assertEquals("", result.stderr());
 			TestCase.assertEquals(0, result.exitCode());
@@ -330,9 +332,8 @@ public class CommandRunnerTest {
 	public void test_20() throws Exception {
 		LOGGER.info("test-20");
 		String userName = CommandUtils.runLocal("whoami").stdout();
-		String hostName = CommandUtils.runLocal("hostname").stdout();
-		
-		CommandResult result = CommandUtils.runRemote(userName, hostName, null, "echo hello");
+
+		CommandResult result = CommandUtils.runRemote(userName, LOCAL_HOST, null, "echo hello");
 		TestCase.assertEquals("hello", result.stdout());
 		TestCase.assertEquals("", result.stderr());
 		TestCase.assertEquals(0, result.exitCode());
@@ -363,9 +364,8 @@ public class CommandRunnerTest {
 		PID = -1;
 		try {
 			String userName = CommandUtils.runLocal("whoami").stdout();
-			String hostName = CommandUtils.runLocal("hostname").stdout();
 
-			CommandUtils.runRemote(1000, userName, hostName, null, "sleep 10");
+			CommandUtils.runRemote(1000, userName, LOCAL_HOST, null, "sleep 10");
 			TestCase.fail("The command didn't time out in 1 sec!");
 		} finally {
 			Thread.sleep(100);
@@ -380,9 +380,8 @@ public class CommandRunnerTest {
 	public void test_23() throws Exception {
 		LOGGER.info("test-23");
 		String userName = CommandUtils.runLocal("whoami").stdout();
-		String hostName = CommandUtils.runLocal("hostname").stdout();
 
-		CommandResult result = CommandUtils.runRemote(10000, userName, hostName, null, "echo hello");
+		CommandResult result = CommandUtils.runRemote(10000, userName, LOCAL_HOST, null, "echo hello");
 		TestCase.assertEquals("hello", result.stdout());
 		TestCase.assertEquals("", result.stderr());
 		TestCase.assertEquals(0, result.exitCode());
