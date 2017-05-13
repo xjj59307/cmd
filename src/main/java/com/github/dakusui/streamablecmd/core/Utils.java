@@ -1,29 +1,19 @@
-package com.github.dakusui.cmd.streamable;
+package com.github.dakusui.streamablecmd.core;
 
 import java.io.*;
 import java.nio.charset.Charset;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 public enum Utils {
   ;
 
-  public static Stream<String> drain(Stream<String> stream, File sink) {
-    return stream;
-  }
-
-  public static Stream<String> drain(Stream<String> stream, Consumer<String> sink, Supplier<Stream<String>> source) {
-    new Thread(() -> stream.forEach(sink)).start();
-    return source.get();
-  }
-
-  public static Stream<String> openForRead(File file, Charset charset) {
+  public static InputStream openForRead(File file) {
     try {
-      return toStream(new FileInputStream(file), charset);
+      return new FileInputStream(file);
     } catch (FileNotFoundException e) {
       throw new RuntimeException(e);
     }
@@ -36,10 +26,10 @@ public enum Utils {
     );
   }
 
-  private enum State {
+  private enum IteratorState {
     READ,
     NOT_READ,
-    END;
+    END
   }
 
   public static Iterator<String> toIterator(InputStream is, Charset charset) {
@@ -50,33 +40,33 @@ public enum Utils {
               charset
           )
       );
-      State state = State.NOT_READ;
+      IteratorState state = IteratorState.NOT_READ;
       String next;
 
       @Override
       public boolean hasNext() {
         readIfNotReadYet();
-        return state != State.END;
+        return state != IteratorState.END;
       }
 
       @Override
       public String next() {
-        if (state == State.END)
+        if (state == IteratorState.END)
           throw new NoSuchElementException();
         readIfNotReadYet();
         try {
           return next;
         } finally {
-          state = State.NOT_READ;
+          state = IteratorState.NOT_READ;
         }
       }
 
       private void readIfNotReadYet() {
-        if (state == State.NOT_READ) {
+        if (state == IteratorState.NOT_READ) {
           this.next = readLine(reader);
           state = this.next == null ?
-              State.END :
-              State.READ;
+              IteratorState.END :
+              IteratorState.READ;
         }
       }
 
@@ -90,16 +80,33 @@ public enum Utils {
     };
   }
 
-  public static Consumer<String> openForWrite(File file, Charset charset) {
+  public static OutputStream openForWrite(File file) {
     try {
-      return toConsumer(new FileOutputStream(file), charset);
+      return new FileOutputStream(file);
     } catch (FileNotFoundException e) {
       throw new RuntimeException(e);
     }
   }
 
+  /**
+   * If {@code null} is given to a consumer returned by this method, the output
+   * stream {@code os} will be closed and {@code null} will not be passed to it.
+   *
+   * @param os      OutputStream to which string objects given to returned consumer written.
+   * @param charset A {@code Charset} object that specifies encoding by which
+   */
   public static Consumer<String> toConsumer(OutputStream os, Charset charset) {
-    PrintStream ps = new PrintStream(os);
-    return ps::println;
+    try {
+      PrintStream ps = new PrintStream(os, true, charset.displayName());
+      return s -> {
+        if (s != null)
+          ps.println(s);
+        else
+          ps.close();
+      };
+    } catch (UnsupportedEncodingException e) {
+      throw new RuntimeException(e);
+    }
   }
+
 }
