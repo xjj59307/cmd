@@ -95,7 +95,11 @@ public interface Cmd {
     private void drain(Stream<String> source, Consumer<String> consumer) {
       new Thread(() -> {
         try {
-          source.forEach(consumer);
+          try {
+            source.forEach(consumer);
+          } finally {
+            source.close();
+          }
         } finally {
           consumer.accept(null);
         }

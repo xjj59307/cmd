@@ -2,11 +2,15 @@ package com.github.dakusui.streamablecmd.core;
 
 import java.io.*;
 import java.nio.charset.Charset;
-import java.util.Iterator;
-import java.util.NoSuchElementException;
+import java.util.*;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+
+import static java.util.stream.Collectors.toList;
 
 public enum Utils {
   ;
@@ -109,4 +113,71 @@ public enum Utils {
     }
   }
 
+  public static class Drainer<T> {
+
+    private final ExecutorService executorService;
+    private final List<Runnable>  runnables;
+
+    public Drainer(Map<Stream<T>, Consumer<T>> streams, ExecutorService executorService) {
+      this.executorService = executorService;
+      this.runnables = streams.entrySet().stream()
+          .map(each -> toRunnable(each.getKey(), each.getValue()))
+          .collect(toList());
+    }
+
+    private Runnable toRunnable(Stream<T> stream, Consumer<T> consumer) {
+      return () -> stream.forEach(consumer);
+    }
+
+    public void drain() {
+      runnables.forEach(executorService::submit);
+    }
+
+    public static class Builder<T> {
+      private Map<Stream<T>, Consumer<T>> streams = new HashMap<>();
+
+      public Builder<T> add(Stream<T> stream, Consumer<T> consumer) {
+        streams.put(stream, consumer);
+        return this;
+      }
+
+      public Drainer<T> build() {
+        return new Drainer<T>(this.streams, Executors.newFixedThreadPool(2));
+      }
+    }
+  }
+
+  public static void main(String... args) throws InterruptedException {
+    Queue<String> queue = new ArrayBlockingQueue<>(200);
+    new Drainer.Builder<String>()
+        .add(
+            list("A", 100).stream(),
+            queue::offer
+        )
+        .add(
+            list("B", 100).stream(),
+            queue::offer
+        )
+        .add(
+            list("C", 100).stream(),
+            queue::offer
+        )
+        .build()
+        .drain();
+    Thread.sleep(100);
+
+    while (true) {
+      String s = queue.poll();
+      if (s != null)
+        System.out.println(s);
+    }
+  }
+
+  private static List<String> list(String prefix, int size) {
+    List<String> ret = new ArrayList<>(size);
+    for (int i = 0; i < size; i++) {
+      ret.add(String.format("%s-%s", prefix, i));
+    }
+    return ret;
+  }
 }

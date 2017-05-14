@@ -45,6 +45,20 @@ public enum CommandUtils {
 
     final Callable<CommandResult> callable = () -> {
       try {
+        Thread currentThread = Thread.currentThread();
+        new Thread(new Runnable() {
+          @Override
+          public void run() {
+            for (int i = 0; i < 500; i++) {
+              try {
+                Thread.sleep(500);
+              } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+              }
+              System.out.println(currentThread.getState());
+            }
+          }
+        }).start();
         cmd.run().forEach(System.out::println);
       } catch (CommandExecutionException e) {
         return new CommandResult(
