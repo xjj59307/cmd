@@ -1,22 +1,23 @@
 package com.github.dakusui.streamablecmd;
 
+import com.github.dakusui.streamablecmd.core.Selector;
 import com.github.dakusui.streamablecmd.core.StreamableProcess;
-import com.github.dakusui.streamablecmd.core.Utils;
 import com.github.dakusui.streamablecmd.exceptions.CommandExecutionException;
+import com.github.dakusui.streamablecmd.exceptions.Exceptions;
+import com.github.dakusui.streamablecmd.exceptions.Exceptions.Arguments;
 
-import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.charset.Charset;
-import java.util.Date;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 import java.util.function.IntPredicate;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-import static java.lang.String.format;
 import static java.util.Arrays.asList;
 import static java.util.stream.Collectors.toList;
 
@@ -25,66 +26,130 @@ public interface Cmd {
 
   List<String> getCommandLine();
 
+  class Builder {
+    Shell shell;
+    List<String> command = new LinkedList<>();
+    Charset      charset = Charset.defaultCharset();
+    Io config;
+
+
+    public Builder add(String arg) {
+      this.command.add(arg);
+      return this;
+    }
+
+    public Builder withShell(Shell shell) {
+      this.shell = shell;
+      return this;
+    }
+
+    public Builder configure(Io config) {
+      this.config = config;
+      return this;
+    }
+
+    public Cmd build() {
+      return new Impl(
+          composeCommandLine(),
+          charset,
+          config);
+    }
+
+    private String[] composeCommandLine() {
+      return this.shell.buildCommandLine(String.join(" ", this.command));
+    }
+  }
+
   class Impl implements Cmd {
-    private static final Object sentinel = new Object();
+    private static final Predicate<Object> SUPPRESS = new Predicate<Object>() {
+      @Override
+      public boolean test(Object o) {
+        return o == SENTINEL;
+      }
+    };
+    private static final Object            SENTINEL = new Object();
 
-    private final IntPredicate     exitCodeChecker;
-    private final String[]         commandLine;
-    private final Charset          charset;
-    private final File             stderrLogFile;
-    private final Consumer<String> stdoutConsumer;
-    private final Consumer<String> stderrConsumer;
-    private final Stream<String>   stdinStream;
+    private final String[] commandLine;
+    private final Charset  charset;
+    private final Io       io;
 
-    private Impl(String[] commandLine, File stderrLogFile, IntPredicate exitCodeChecker, Charset charset, Consumer<String> stdoutConsumer, Consumer<String> stderrConsumer, Stream<String> stdinStream) {
+    Impl(String[] commandLine, Charset charset, Io io) {
       this.commandLine = commandLine;
-      this.stderrLogFile = stderrLogFile;
-      this.exitCodeChecker = exitCodeChecker;
       this.charset = charset;
-      this.stdoutConsumer = stdoutConsumer;
-      this.stderrConsumer = stderrConsumer;
-      this.stdinStream = stdinStream;
+      this.io = io;
+    }
+
+    private StreamableProcess startProcess() {
+      return new StreamableProcess(
+          createProcess(this.commandLine),
+          charset);
     }
 
     @Override
     public Stream<String> run() {
-      StreamableProcess process = new StreamableProcess(
-          createProcess(this.commandLine),
-          charset);
-      drain(this.stdinStream, process.stdin());
-      Stream<String> stdout = process.stdout();
+      StreamableProcess process = startProcess();
+      ExecutorService excutorService = Executors.newFixedThreadPool(3);
       return Stream.concat(
-          stdout,
-          Stream.of(sentinel)
+          new Selector.Builder<String>()
+              .add(this.io.stdin(), process.stdin())
+              .add(
+                  process.stdout()
+                      .map(s -> {
+                        this.io.stdoutConsumer().accept(s);
+                        return s;
+                      })
+                      .filter(SUPPRESS.or(s -> io.redirectsStdout()))
+              )
+              .add(
+                  process.stderr()
+                      .map(s -> {
+                        this.io.stderrConsumer().accept(s);
+                        return s;
+                      })
+                      .filter(SUPPRESS.or(s -> io.redirectsStderr()))
+              )
+              .withExecutorService(excutorService)
+              .build()
+              .select(),
+          Stream.of(SENTINEL)
       ).filter(
           o -> {
-            try {
-              if (o == sentinel) {
-                try (Stream<String> stderr = drain(process.stderr(), stderrLogFile, charset, stderrConsumer)) {
+            if (o == SENTINEL) {
+              try {
+                try {
                   try {
-                    int exitCode = process.waitFor();
-                    if (!(exitCodeChecker.test(exitCode))) {
-                      throw new CommandExecutionException(exitCode, commandLine, process.getPid(), stderr);
+                    try {
+                      int exitValue = waitFor(process);
+                      if (!(this.io.exitValue().test(exitValue))) {
+                        throw new CommandExecutionException(exitValue, this.getCommandLine().toArray(new String[0]), process.getPid());
+                      }
+                      return false;
+                    } finally {
+                      process.stdout().close();
                     }
-                    return false;
                   } finally {
-                    stdout.close();
+                    process.stderr().close();
                   }
+                } finally {
+                  process.stdin().accept(null);
                 }
+              } finally {
+                excutorService.shutdown();
               }
-              return true;
-            } catch (InterruptedException e) {
-              throw new RuntimeException(e);
             }
+            return true;
           }
       ).map(
           o -> (String) o
-      ).filter(
-          s -> {
-            stdoutConsumer.accept(s);
-            return true;
-          }
       );
+    }
+
+    int waitFor(Process process) {
+      try {
+        return process.waitFor();
+      } catch (InterruptedException e) {
+        throw Exceptions.wrap(e);
+      }
     }
 
     @Override
@@ -92,330 +157,229 @@ public interface Cmd {
       return asList(commandLine);
     }
 
-    private void drain(Stream<String> source, Consumer<String> consumer) {
-      new Thread(() -> {
-        try {
-          try {
-            source.forEach(consumer);
-          } finally {
-            source.close();
-          }
-        } finally {
-          consumer.accept(null);
-        }
-      }).start();
-    }
-
     private Process createProcess(String[] commandLine) {
       try {
         return Runtime.getRuntime().exec(commandLine);
       } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-    }
-
-    @SuppressWarnings("EmptyCatchBlock")
-    private static Stream<String> drain(Stream<String> stream, File file, Charset charset, Consumer<String> consumer) {
-      AtomicBoolean monitor = new AtomicBoolean(false);
-      new Thread(() -> {
-        synchronized (monitor) {
-          monitor.set(true);
-          monitor.notify();
-          try {
-            stream.forEach(Utils.toConsumer(Utils.openForWrite(file), charset).andThen(consumer));
-          } finally {
-            stream.close();
-          }
-        }
-      }).start();
-      synchronized (monitor) {
-        while (!monitor.get())
-          try {
-            monitor.wait();
-          } catch (InterruptedException e) {
-          }
-      }
-      return Utils.toStream(synchronize(Utils.openForRead(file), monitor), charset);
-    }
-
-    private static InputStream synchronize(InputStream is, Object monitor) {
-      return new InputStream() {
-        @Override
-        public int read() throws IOException {
-          synchronized (monitor) {
-            return is.read();
-          }
-        }
-      };
-    }
-
-  }
-
-  class SshOptions {
-    public final String hostName;
-    public final String userName;
-    public final File   identity;
-
-    private SshOptions(String userName, String hostName, File identity) {
-      this.userName = userName;
-      this.hostName = hostName;
-      this.identity = identity;
-    }
-
-    public static class Builder {
-      String hostName = null;
-      String userName = null;
-      private File identity = null;
-
-      public Builder setIdentity(File identity) {
-        this.identity = identity;
-        return this;
-      }
-
-      public Builder setUserName(String userName) {
-        this.userName = userName;
-        return this;
-      }
-
-      public Builder setHostName(String hostName) {
-        this.hostName = hostName;
-        return this;
-      }
-
-      public SshOptions build() {
-        return new SshOptions(this.userName, this.hostName, this.identity);
+        throw Exceptions.wrap(e);
       }
     }
   }
 
-  class Builder {
-    SshOptions sshOptions;
-    String           program         = null;
-    List<String>     arguments       = new LinkedList<>();
-    Charset          charset         = Charset.defaultCharset();
-    File             stderrLogFile   = null;
-    IntPredicate     exitCodeChecker = value -> value == 0;
-    Consumer<String> stdoutConsumer  = s -> {
-    };
-    Consumer<String> stderrConsumer  = s -> {
-    };
-    Stream<String>   stdinStream     = Stream.empty();
+  interface Io {
+    Io DEFAULT = new Impl(Stream.empty());
 
-    public Builder setProgram(String command) {
-      this.program = command;
-      return this;
+    Stream<String> stdin();
+
+    Consumer<String> stdoutConsumer();
+
+    Consumer<String> stderrConsumer();
+
+    boolean redirectsStdout();
+
+    boolean redirectsStderr();
+
+    IntPredicate exitValue();
+
+    abstract class Base implements Io {
+      private final Stream<String> stdin;
+      private Consumer<String> stdoutConsumer    = this::consumeStdout;
+      private Consumer<String> stderrConsumer    = this::consumeStderr;
+      private IntPredicate     exitValueConsumer = this::exitValue;
+
+      protected Base(Stream<String> stdin) {
+        this.stdin = Exceptions.Arguments.requireNonNull(stdin);
+      }
+
+      @Override
+      public Stream<String> stdin() {
+        return this.stdin;
+      }
+
+      @Override
+      public Consumer<String> stdoutConsumer() {
+        return stdoutConsumer;
+      }
+
+      @Override
+      public Consumer<String> stderrConsumer() {
+        return stderrConsumer;
+      }
+
+      @Override
+      public IntPredicate exitValue() {
+        return this.exitValueConsumer;
+      }
+
+      abstract protected void consumeStdout(String s);
+
+      abstract protected void consumeStderr(String s);
+
+      abstract protected boolean exitValue(int exitValue);
     }
 
-    public Builder clearArguments() {
-      arguments.clear();
-      return this;
-    }
+    class Impl extends Base {
+      public Impl(Stream<String> stdin) {
+        super(stdin);
+      }
 
-    public Builder addArgument(String arg) {
-      this.arguments.add(arg);
-      return this;
-    }
+      @Override
+      protected void consumeStdout(String s) {
+      }
 
-    public Builder addAllArguments(List<String> arguments) {
-      arguments.forEach(this::addArgument);
-      return this;
-    }
+      @Override
+      protected void consumeStderr(String s) {
+      }
 
-    public Builder ssh(String userName, String hostName) {
-      this.ssh(
-          new SshOptions.Builder()
-              .setUserName(userName)
-              .setHostName(hostName)
-              .build()
-      );
-      return this;
-    }
+      @Override
+      protected boolean exitValue(int exitValue) {
+        return exitValue == 0;
+      }
 
-    public Builder ssh(SshOptions options) {
-      this.sshOptions = options;
-      return this;
-    }
+      @Override
+      public boolean redirectsStdout() {
+        return true;
+      }
 
-    public Builder local() {
-      this.sshOptions = null;
-      return this;
-    }
-
-    public Builder setStderrLogFile(File stderrLogFile) {
-      this.stderrLogFile = stderrLogFile;
-      return this;
-    }
-
-    public Builder setStdoutConsumer(Consumer<String> stdoutConsumer) {
-      this.stdoutConsumer = stdoutConsumer;
-      return this;
-    }
-
-    public Builder setStderrConsumer(Consumer<String> stderrConsumer) {
-      this.stderrConsumer = stderrConsumer;
-      return this;
-    }
-
-    public Builder setStdinStream(Stream<String> stdinStream) {
-      this.stdinStream = stdinStream;
-      return this;
-    }
-
-    public Builder setExitCodeChecker(IntPredicate exitCodeChecker) {
-      this.exitCodeChecker = exitCodeChecker;
-      return this;
-    }
-
-    public Cmd build() {
-      return new Impl(
-          composeCommandLine(),
-          this.stderrLogFile != null ?
-              this.stderrLogFile :
-              createTempFile(),
-          exitCodeChecker,
-          charset,
-          stdoutConsumer,
-          stderrConsumer,
-          stdinStream);
-    }
-
-    private File createTempFile() {
-      try {
-        File ret = File.createTempFile("commandrunner-streamable-", ".log");
-        ret.deleteOnExit();
-        return ret;
-      } catch (IOException e) {
-        throw new RuntimeException(e);
+      @Override
+      public boolean redirectsStderr() {
+        return false;
       }
     }
+  }
 
-    private String[] composeCommandLine() {
-      if (this.sshOptions == null) {
+  interface Shell {
+    class Impl implements Shell {
+      private final String       program;
+      private final List<String> options;
+
+      Impl(String program, List<String> options) {
+        this.program = program;
+        this.options = options;
+      }
+
+      String program() {
+        return program;
+      }
+
+      List<String> options() {
+        return options;
+      }
+
+      public String[] buildCommandLine(String command) {
         return Stream.concat(
-            Stream.of(this.program),
-            this.arguments.stream())
-            .collect(toList())
-            .toArray(new String[this.arguments.size() + 1]);
+            Stream.concat(
+                Stream.of(program()),
+                options().stream()
+            ),
+            Stream.of(command)
+        ).collect(toList()).toArray(new String[0]);
       }
-      return new LinkedList<String>() {{
-        add("ssh");
-        add("-o");
-        add("PasswordAuthentication=no");
-        add("-o");
-        add("StrictHostKeyChecking=no");
-        if (sshOptions.identity != null) {
-          add("-i");
-          add(sshOptions.identity.getAbsolutePath());
+    }
+
+    String[] buildCommandLine(String command);
+
+    abstract class Builder<B extends Builder> {
+      private String program;
+      private List<String> options = new LinkedList<>();
+
+      @SuppressWarnings("unchecked")
+      public B withProgram(String program) {
+        this.program = Exceptions.Arguments.requireNonNull(program);
+        return (B) this;
+      }
+
+      @SuppressWarnings("unchecked")
+      public B clearOptions() {
+        this.options.clear();
+        return (B) this;
+      }
+
+      @SuppressWarnings("unchecked")
+      public B addOption(String option) {
+        this.options.add(option);
+        return (B) this;
+      }
+
+      @SuppressWarnings("unchecked")
+      public B addOption(String option, String value) {
+        this.options.add(option);
+        this.options.add(value);
+        return (B) this;
+      }
+
+      String getProgram() {
+        return this.program;
+      }
+
+      List<String> getOptions() {
+        return this.options;
+      }
+
+      public Shell build() {
+        Arguments.requireNonNull(this.program);
+        return new Shell.Impl(getProgram(), this.getOptions());
+      }
+
+      @SuppressWarnings("unchecked")
+      public B addAllOptions(List<String> options) {
+        options.forEach(this::addOption);
+        return (B) this;
+      }
+
+      public static class ForLocal extends Builder<ForLocal> {
+        public ForLocal() {
+          this.withProgram("sh")
+              .addOption("-c");
         }
-        add(format("%s@%s", sshOptions.userName, sshOptions.hostName));
-        add(format(
-            "%s %s",
-            program,
-            String.join(" ", arguments)
-        ));
-      }}.toArray(new String[0]);
+      }
+
+      public static class ForSsh extends Builder<ForSsh> {
+        private       String userName;
+        private final String hostName;
+        private String identity = null;
+
+        public ForSsh(String hostName) {
+          this.hostName = Arguments.requireNonNull(hostName);
+          this.withProgram("ssh")
+              .addOption("-o", "PasswordAuthentication=no")
+              .addOption("-o", "StrictHostkeyChecking=no");
+        }
+
+        public ForSsh userName(String userName) {
+          this.userName = userName;
+          return this;
+        }
+
+        public ForSsh identity(String identity) {
+          this.identity = identity;
+          return this;
+        }
+
+        List<String> getOptions() {
+          return Stream.concat(
+              super.getOptions().stream(),
+              Stream.concat(
+                  composeIdentity().stream(),
+                  Stream.of(
+                      composeAccount()
+                  )
+              )
+          ).collect(toList());
+        }
+
+        List<String> composeIdentity() {
+          return identity == null ?
+              Collections.emptyList() :
+              asList("-i", identity);
+        }
+
+        String composeAccount() {
+          return userName == null ?
+              hostName :
+              String.format("%s@%s", userName, hostName);
+        }
+      }
     }
   }
-
-  static void main2(String... args) throws IOException {
-    try {
-      new Cmd.Builder()
-          .setProgram("sh")
-          .addArgument("-c")
-          .addArgument("echo $(which echo) && echo \"hello\" && cat hello")
-          .setStderrConsumer(s -> System.err.println(new Date() + ":" + s))
-          .setStdoutConsumer(s -> System.out.println(new Date() + ":" + s))
-          .build()
-          .run()
-          .forEach(System.out::println);
-    } catch (CommandExecutionException e) {
-      System.err.println(e.exitCode());
-      System.err.println(String.join(":", e.commandLine()));
-      e.stderr().forEach(System.err::println);
-      throw e;
-    }
-  }
-
-  static void main3(String... args) throws IOException {
-    try {
-      new Cmd.Builder()
-          .ssh(new SshOptions.Builder()
-              .setUserName("hiroshi.ukai")
-              .setHostName("localhost")
-              .setIdentity(new File("/Users/hiroshi.ukai/.ssh/id_rsa.p25283"))
-              .build())
-          .setProgram("echo")
-          .addArgument("hello")
-          .setStderrConsumer(s -> System.err.println(new Date() + ":" + s))
-          .setStdoutConsumer(s -> System.out.println(new Date() + ":" + s))
-          .build()
-          .run()
-          .forEach(System.out::println);
-    } catch (CommandExecutionException e) {
-      System.err.println("exitcode:" + e.exitCode());
-      System.err.println("commandline:" + String.join(" ", e.commandLine()));
-      e.stderr().forEach(System.err::println);
-      throw e;
-    }
-  }
-
-  static void main4(String... args) throws IOException {
-    try {
-      new Cmd.Builder()
-          .setStdinStream(Stream.of("hello", "world", "everyone"))
-          .setProgram("cat")
-          .addArgument("-n")
-          .setStderrConsumer(s -> System.err.println(new Date() + ":" + s))
-          .setStdoutConsumer(s -> System.out.println(new Date() + ":" + s))
-          .build()
-          .run()
-          .forEach(System.out::println);
-    } catch (CommandExecutionException e) {
-      System.err.println(e.exitCode());
-      System.err.println(String.join(":", e.commandLine()));
-      e.stderr().forEach(System.err::println);
-      throw e;
-    }
-  }
-
-  static void main(String... args) throws IOException {
-    try {
-      Cmd cmd;
-      cmd = new Cmd.Builder()
-          .setStdinStream(Stream.empty())
-          .setProgram("sh")
-          .addArgument("-c")
-          .setStdinStream(Stream.of("Hello", "world"))
-          .addArgument(format("cat /dev/zero | head -c 100000 | %s 80", base64()))
-          .setStderrConsumer(s -> System.err.println(new Date() + ":" + s))
-          .setStdoutConsumer(s -> System.out.println(new Date() + ":" + s))
-          .build();
-      System.out.println("commandLine=" + cmd.getCommandLine());
-      cmd.run()
-          .forEach(System.out::println);
-    } catch (CommandExecutionException e) {
-      System.err.println(e.exitCode());
-      System.err.println(String.join(":", e.commandLine()));
-      e.stderr().forEach(System.err::println);
-      throw e;
-    }
-  }
-
-  public static String base64() {
-    String systemName = systemName();
-    String ret;
-    if ("Linux".equals(systemName)) {
-      ret = "base64 -w";
-    } else if ("Mac OS X".equals(systemName)) {
-      ret = "base64 -b";
-    } else {
-      throw new RuntimeException(String.format("%s is not a supported platform.", systemName));
-    }
-    return ret;
-  }
-
-  static String systemName() {
-    return System.getProperty("os.name");
-  }
-
 }

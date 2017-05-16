@@ -51,7 +51,7 @@ public class StreamableProcess extends Process {
    * of the underlying process.
    */
   public Stream<String> stdout() {
-    return Utils.toStream(getInputStream(), this.charset);
+    return IoUtils.toStream(getInputStream(), this.charset);
   }
 
   /**
@@ -59,7 +59,7 @@ public class StreamableProcess extends Process {
    * of the underlying process.
    */
   public Stream<String> stderr() {
-    return Utils.toStream(getErrorStream(), this.charset);
+    return IoUtils.toStream(getErrorStream(), this.charset);
   }
 
   /**
@@ -67,7 +67,7 @@ public class StreamableProcess extends Process {
    * of the underlying process.
    */
   public Consumer<String> stdin() {
-    return Utils.toConsumer(this.getOutputStream(), this.charset);
+    return IoUtils.toConsumer(this.getOutputStream(), this.charset);
   }
 
   public int getPid() {
@@ -85,14 +85,8 @@ public class StreamableProcess extends Process {
       } finally {
         f.setAccessible(accessible);
       }
-    } catch (IllegalAccessException e) {
-      throw new RuntimeException("PID isn't available on this platform. (IllegalAccess) ", e);
-    } catch (NoSuchFieldException e) {
-      throw new RuntimeException("PID isn't available on this platform. (NoSuchField)", e);
-    } catch (SecurityException e) {
-      throw new RuntimeException("PID isn't available on this platform. (Security)", e);
-    } catch (NumberFormatException e) {
-      throw new RuntimeException("PID isn't available on this platform. (NumberFormat)", e);
+    } catch (IllegalAccessException | NumberFormatException | SecurityException | NoSuchFieldException e) {
+      throw new RuntimeException(String.format("PID isn't available on this platform. (%s)", e.getClass().getSimpleName()), e);
     }
     return ret;
   }

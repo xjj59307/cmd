@@ -5,8 +5,10 @@ import com.github.dakusui.cmd.exceptions.CommandTimeoutException;
 import com.github.dakusui.cmd.io.RingBufferedLineWriter;
 import com.github.dakusui.streamablecmd.Cmd;
 import com.github.dakusui.streamablecmd.exceptions.CommandExecutionException;
+import com.github.dakusui.streamablecmd.exceptions.Exceptions;
 
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
 import static java.util.Arrays.asList;
@@ -16,68 +18,96 @@ public enum CommandUtils {
   ;
   private static final String[] LOCAL_SHELL = new String[] { "sh", "-c" };
 
-  public static CommandResult runCompat(int timeout, String[] execShell, String command) throws CommandException {
-    Command cmd = new Command(execShell, command);
-    return cmd.exec(timeout);
+  public static CommandResult run(int timeOut, String[] execShell, String command) throws CommandException {
+    return run(
+        timeOut,
+        new Cmd.Shell.Builder.ForLocal()
+            .withProgram(execShell[0])
+            .clearOptions()
+            .addAllOptions(asList(execShell).subList(1, execShell.length))
+            .build(),
+        command
+    );
   }
 
-  public static CommandResult run(int timeOut, String[] execShell, String command) throws CommandException {
+  public static CommandResult run(int timeOut, Cmd.Shell shell, String command) throws CommandException {
     RingBufferedLineWriter stdout = new RingBufferedLineWriter(100);
     RingBufferedLineWriter stderr = new RingBufferedLineWriter(100);
     RingBufferedLineWriter stdouterr = new RingBufferedLineWriter(100);
-
+    AtomicReference<Integer> exitValueHolder = new AtomicReference<>(null);
     Cmd cmd = new Cmd.Builder()
-        .local()
-        .setProgram(execShell[0])
-        .addAllArguments(asList(execShell).subList(1, execShell.length))
-        .addArgument(command)
-        .setStdinStream(Stream.empty())
-        .setStdoutConsumer(s -> {
-          stdout.write(s);
-          stdouterr.write(s);
+        .withShell(shell)
+        .add(command)
+        .configure(new Cmd.Io.Base(Stream.empty()) {
+          @Override
+          public boolean redirectsStdout() {
+            return true;
+          }
+
+          @Override
+          public boolean redirectsStderr() {
+            return false;
+          }
+
+          @Override
+          protected void consumeStdout(String s) {
+            stdout.write(s);
+            stdouterr.write(s);
+          }
+
+          @Override
+          protected void consumeStderr(String s) {
+            stderr.write(s);
+            stdouterr.write(s);
+          }
+
+          @Override
+          protected boolean exitValue(int exitValue) {
+            synchronized (exitValueHolder) {
+              exitValueHolder.set(exitValue);
+              exitValueHolder.notifyAll();
+              return exitValue == 0;
+            }
+          }
         })
-        .setStderrConsumer(s -> {
-          stderr.write(s);
-          stdouterr.write(s);
-        })
-        .setExitCodeChecker(value -> false)
         .build();
 
     final Callable<CommandResult> callable = () -> {
+      String commandLine = String.join(" ", cmd.getCommandLine());
       try {
-        Thread currentThread = Thread.currentThread();
-        new Thread(new Runnable() {
-          @Override
-          public void run() {
-            for (int i = 0; i < 500; i++) {
-              try {
-                Thread.sleep(500);
-              } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-              }
-              System.out.println(currentThread.getState());
+        cmd.run().forEach(s -> {
+        });
+        synchronized (exitValueHolder) {
+          Integer exitValue;
+          while ((exitValue = exitValueHolder.get()) == null) {
+            try {
+              exitValueHolder.wait();
+            } catch (InterruptedException ignored) {
             }
           }
-        }).start();
-        cmd.run().forEach(System.out::println);
+          return new CommandResult(
+              String.join(" "),
+              exitValue,
+              stdout.asString(),
+              stderr.asString(),
+              stdouterr.asString()
+          );
+        }
       } catch (CommandExecutionException e) {
         return new CommandResult(
-            String.join(" ", e.commandLine()),
+            commandLine,
             e.exitCode(),
             stdout.asString(),
             stderr.asString(),
             stdouterr.asString()
         );
       }
-      throw new RuntimeException();
     };
     if (timeOut <= 0) {
       try {
         return callable.call();
-      } catch (Error | RuntimeException e) {
-        throw e;
-      } catch (Exception e) {
-        throw new RuntimeException(e);
+      } catch (Error | Exception e) {
+        throw Exceptions.wrap(e);
       }
     } else {
       ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -87,7 +117,7 @@ public enum CommandUtils {
       } catch (InterruptedException | ExecutionException e) {
         throw new CommandException(e);
       } catch (TimeoutException e) {
-        throw new CommandTimeoutException(e);
+        throw new CommandTimeoutException(e.getMessage(), e);
       } finally {
         executor.shutdownNow();
       }

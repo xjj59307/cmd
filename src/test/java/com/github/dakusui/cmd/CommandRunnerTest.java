@@ -12,26 +12,26 @@ import static java.lang.String.format;
 public class CommandRunnerTest {
   private static Logger LOGGER = LoggerFactory.getLogger(CommandRunnerTest.class);
 
-  protected void assertCommandResult(String stdout, String stderr, String stdouterr, int exitCode, CommandResult result) {
+  private void assertCommandResult(String stdout, String stderr, String stdouterr, int exitCode, CommandResult result) {
     Assert.assertEquals(stdout, result.stdout());
     Assert.assertEquals(stderr, result.stderr());
     Assert.assertEquals(stdouterr, result.stdouterr());
     Assert.assertEquals(exitCode, result.exitCode());
   }
 
-  @Test
+  @Test(timeout = 10_000)
   public void runLocal_echo_hello() throws Exception {
     CommandResult result = CommandUtils.runLocal("echo hello");
     assertCommandResult("hello", "", "hello", 0, result);
   }
 
-  @Test
+  @Test(timeout = 10_000)
   public void runLocal_echo_hello_$$_echo_hello() throws Exception {
     CommandResult result = CommandUtils.runLocal("echo hello && echo hello");
     assertCommandResult("hello\nhello", "", "hello\nhello", 0, result);
   }
 
-  @Test
+  @Test(timeout = 10_000)
   public void runLocal_echo_hello_twice() throws Exception {
     CommandResult result;
     LOGGER.info("stage - 1");
@@ -42,7 +42,7 @@ public class CommandRunnerTest {
     assertCommandResult("hello", "", "hello", 0, result);
   }
 
-  @Test
+  @Test(timeout = 10_000)
   public void runLocal_execFailingCommand() throws Exception {
     CommandResult result;
     // non existing file "NNN"
@@ -56,7 +56,7 @@ public class CommandRunnerTest {
     );
   }
 
-  @Test
+  @Test(timeout = 10_000)
   public void runLocal_echo_WORLD_tostderr() throws Exception {
     CommandResult result;
     LOGGER.info("test_03");
@@ -71,7 +71,7 @@ public class CommandRunnerTest {
     LOGGER.debug("result={}", result);
   }
 
-  @Test
+  @Test(timeout = 10_000)
   public void runLocal_sleep1_$$_echo_hi_MakeSureLongCommandWorksCorrectly() throws Exception {
     LOGGER.info("test-07");
     CommandResult result = CommandUtils.runLocal("sleep 1 && echo hi");
@@ -79,26 +79,26 @@ public class CommandRunnerTest {
   }
 
 
-  @Test
+  @Test(timeout = 10_000)
   public void test_08() throws Exception {
     LOGGER.info("test-08");
-    String cmd = "";
+    StringBuilder cmd = new StringBuilder();
     for (int i = 100; i > 0; i--) {
-      cmd += "echo " + i;
+      cmd.append("echo ").append(i);
       if (i != 1) {
-        cmd += " && ";
+        cmd.append(" && ");
       }
     }
 
-    String expected = "";
+    StringBuilder expected = new StringBuilder();
     for (int i = 100; i > 0; i--) {
-      expected += i;
+      expected.append(i);
       if (i != 1) {
-        expected += System.getProperty("line.separator");
+        expected.append(System.getProperty("line.separator"));
       }
     }
-    CommandResult result = CommandUtils.runLocal(cmd);
-    TestCase.assertEquals(expected, result.stdout());
+    CommandResult result = CommandUtils.runLocal(cmd.toString());
+    TestCase.assertEquals(expected.toString(), result.stdout());
     TestCase.assertEquals("", result.stderr());
     TestCase.assertEquals(0, result.exitCode());
   }
@@ -109,104 +109,104 @@ public class CommandRunnerTest {
   @Test
   public void test_09() throws Exception {
     LOGGER.info("test-09");
-    String cmd = "";
+    StringBuilder cmd = new StringBuilder();
     for (int i = 101; i > 0; i--) {
-      cmd += "echo " + i;
+      cmd.append("echo ").append(i);
       if (i != 1) {
-        cmd += " && ";
+        cmd.append(" && ");
       }
     }
 
-    String expected = "";
+    StringBuilder expected = new StringBuilder();
     for (int i = 100; i > 0; i--) {
-      expected += i;
+      expected.append(i);
       if (i != 1) {
-        expected += System.getProperty("line.separator");
+        expected.append(System.getProperty("line.separator"));
       }
     }
 
-    CommandResult result = CommandUtils.runLocal(cmd);
-    TestCase.assertEquals(expected, result.stdout());
+    CommandResult result = CommandUtils.runLocal(cmd.toString());
+    TestCase.assertEquals(expected.toString(), result.stdout());
     TestCase.assertEquals("", result.stderr());
     TestCase.assertEquals(0, result.exitCode());
   }
 
-  @Test
+  @Test(timeout = 10_000)
   public void test_10() throws Exception {
     LOGGER.info("test-10");
-    String cmd = "";
+    StringBuilder cmd = new StringBuilder();
     for (int i = 99; i > 0; i--) {
-      cmd += "echo " + i;
+      cmd.append("echo ").append(i);
       if (i != 1) {
-        cmd += " && ";
+        cmd.append(" && ");
       }
     }
 
-    String expected = "";
+    StringBuilder expected = new StringBuilder();
     for (int i = 99; i > 0; i--) {
-      expected += i;
+      expected.append(i);
       if (i != 1) {
-        expected += System.getProperty("line.separator");
+        expected.append(System.getProperty("line.separator"));
       }
     }
 
-    CommandResult result = CommandUtils.runLocal(cmd);
-    TestCase.assertEquals(expected, result.stdout());
+    CommandResult result = CommandUtils.runLocal(cmd.toString());
+    TestCase.assertEquals(expected.toString(), result.stdout());
     TestCase.assertEquals("", result.stderr());
     TestCase.assertEquals(0, result.exitCode());
   }
 
-  @Test
+  @Test//(timeout = 10_000)
   public void test_11() throws Exception {
     LOGGER.info("test-11");
-    String cmd = "";
+    StringBuilder cmd = new StringBuilder();
     for (int i = 200; i > 0; i--) {
-      cmd += "echo " + i;
+      cmd.append("echo ").append(i);
       if (i != 1) {
-        cmd += " && ";
+        cmd.append(" && ");
       }
     }
 
-    String expected = "";
+    StringBuilder expected = new StringBuilder();
     for (int i = 100; i > 0; i--) {
-      expected += i;
+      expected.append(i);
       if (i != 1) {
-        expected += System.getProperty("line.separator");
+        expected.append(System.getProperty("line.separator"));
       }
     }
-
-    CommandResult result = CommandUtils.runLocal(cmd);
-    TestCase.assertEquals(expected, result.stdout());
+    System.err.println(cmd);
+    CommandResult result = CommandUtils.runLocal(cmd.toString());
+    TestCase.assertEquals(expected.toString(), result.stdout());
     TestCase.assertEquals("", result.stderr());
     TestCase.assertEquals(0, result.exitCode());
   }
 
-  @Test
+  @Test(timeout = 10_000)
   public void test_12() throws Exception {
     LOGGER.info("test-12");
-    String cmd = "";
+    StringBuilder cmd = new StringBuilder();
     for (int i = 201; i > 0; i--) {
-      cmd += "echo " + i;
+      cmd.append("echo ").append(i);
       if (i != 1) {
-        cmd += " && ";
+        cmd.append(" && ");
       }
     }
 
-    String expected = "";
+    StringBuilder expected = new StringBuilder();
     for (int i = 100; i > 0; i--) {
-      expected += i;
+      expected.append(i);
       if (i != 1) {
-        expected += System.getProperty("line.separator");
+        expected.append(System.getProperty("line.separator"));
       }
     }
 
-    CommandResult result = CommandUtils.runLocal(cmd);
-    TestCase.assertEquals(expected, result.stdout());
+    CommandResult result = CommandUtils.runLocal(cmd.toString());
+    TestCase.assertEquals(expected.toString(), result.stdout());
     TestCase.assertEquals("", result.stderr());
     TestCase.assertEquals(0, result.exitCode());
   }
 
-  @Test(timeout = 10000)
+  @Test(timeout = 10_000)
   public void test_13() throws Exception {
     LOGGER.info("test-13");
     String cmd = format("cat /dev/zero | head -c 10000 | %s 80", base64());
@@ -293,8 +293,8 @@ public class CommandRunnerTest {
     TestCase.assertEquals(0, result.exitCode());
   }
 
-  private String buildExpectedData(int numCharsPerOneLine, int numCharsInLastLine) {
-    StringBuffer b = new StringBuffer();
+  private String buildExpectedData(@SuppressWarnings("SameParameterValue") int numCharsPerOneLine, @SuppressWarnings("SameParameterValue") int numCharsInLastLine) {
+    StringBuilder b = new StringBuilder();
     for (int i = 1; i < 100; i++) {
       b.append(buildExpectedDataOneLine(numCharsPerOneLine));
       b.append(System.getProperty("line.separator"));
@@ -305,14 +305,14 @@ public class CommandRunnerTest {
   }
 
   private String buildExpectedDataOneLine(int numChars) {
-    StringBuffer b = new StringBuffer(numChars * 2);
+    StringBuilder b = new StringBuilder(numChars * 2);
     for (int i = 0; i < numChars; i++) {
       b.append("A");
     }
     return b.toString();
   }
 
-  @Test
+  @Test(timeout = 20_000)
   public void test_19() throws Exception {
     LOGGER.info("test-19");
     boolean finished = false;
@@ -334,7 +334,7 @@ public class CommandRunnerTest {
     }
   }
 
-  @Test
+  @Test(timeout = 20_000)
   public void test_20() throws Exception {
     LOGGER.info("test-20");
     String userName = CommandUtils.runLocal("whoami").stdout();
@@ -346,10 +346,10 @@ public class CommandRunnerTest {
     TestCase.assertEquals(0, result.exitCode());
   }
 
-  static int PID;
+  private static int PID;
 
 
-  @Test(expected = CommandTimeoutException.class)
+  @Test(expected = CommandTimeoutException.class, timeout = 10_000)
   public void test_21() throws Exception {
     LOGGER.info("test-21");
     PID = -1;
@@ -365,7 +365,7 @@ public class CommandRunnerTest {
     }
   }
 
-  @Test(expected = CommandTimeoutException.class)
+  @Test(expected = CommandTimeoutException.class, timeout = 10_000)
   public void test_22() throws Exception {
     LOGGER.info("test-22");
     PID = -1;
@@ -384,23 +384,23 @@ public class CommandRunnerTest {
     }
   }
 
-  @Test
+  @Test(timeout = 20_000)
   public void test_23() throws Exception {
     LOGGER.info("test-23");
     String userName = CommandUtils.runLocal("whoami").stdout();
     String hostName = CommandUtils.runLocal("hostname").stdout();
 
-    CommandResult result = CommandUtils.runRemote(10000, userName, hostName, TestUtils.identity(), "echo hello");
+    CommandResult result = CommandUtils.runRemote(15_000, userName, hostName, TestUtils.identity(), "echo hello");
     TestCase.assertEquals("hello", result.stdout());
     TestCase.assertEquals("", result.stderr());
     TestCase.assertEquals(0, result.exitCode());
   }
 
-  static String systemName() {
+  private static String systemName() {
     return System.getProperty("os.name");
   }
 
-  public static String base64() {
+  private static String base64() {
     String systemName = systemName();
     String ret;
     if ("Linux".equals(systemName)) {

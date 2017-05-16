@@ -1,17 +1,16 @@
 package com.github.dakusui.cmd.io;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.Charset;
-
+import com.github.dakusui.cmd.exceptions.CommandException;
 import org.apache.commons.lang3.ArrayUtils;
 
-import com.github.dakusui.cmd.exceptions.CommandException;
+import java.io.*;
+import java.nio.charset.Charset;
 
 public class BasicLineReader implements LineReader {
+	/*
+	 * This library doesn't respect the second byte of EOL string of the platform.
+	 */
+	static final char EOL = System.getProperty("line.separator").toCharArray()[0];
 	private InputStreamReader isReader = null;
 	private BufferedReader bReader = null;
 	private char[] buf = null;
@@ -79,7 +78,7 @@ public class BasicLineReader implements LineReader {
 	}
 	
 	private int indexOfEOL(char[] buf) {
-		return ArrayUtils.indexOf(buf, LineConsumer.EOL);
+		return ArrayUtils.indexOf(buf, EOL);
 	}
 	
 	@Override

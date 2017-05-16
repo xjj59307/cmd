@@ -7,21 +7,15 @@ import java.util.stream.Stream;
  * Thrown when a command executed by 'streamable-cmd' exits with an error.
  */
 public class CommandExecutionException extends BaseException {
-  final private int            exitCode;
-  final private Stream<String> stderr;
-  private final String[]       commandLine;
-  private final int            pid;
+  final private int      exitCode;
+  private final String[] commandLine;
+  private final int      pid;
 
-  public CommandExecutionException(int exitCode, String[] commandLine, int pid, Stream<String> stderr) {
+  public CommandExecutionException(int exitCode, String[] commandLine, int pid) {
     super(composeErrorMessage(exitCode, commandLine, pid));
     this.exitCode = exitCode;
-    this.stderr = stderr;
     this.pid = pid;
     this.commandLine = commandLine;
-  }
-
-  public Stream<String> stderr() {
-    return this.stderr;
   }
 
   public int exitCode() {
