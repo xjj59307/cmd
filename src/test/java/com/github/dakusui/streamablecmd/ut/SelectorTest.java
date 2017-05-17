@@ -1,5 +1,6 @@
 package com.github.dakusui.streamablecmd.ut;
 
+import com.github.dakusui.cmd.TestUtils;
 import com.github.dakusui.streamablecmd.core.Selector;
 import org.junit.Test;
 
@@ -8,7 +9,7 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class SelectorTest {
+public class SelectorTest extends TestUtils.StdOutTestBase {
   @Test(timeout = 5_000)
   public void main() {
     ExecutorService executorService = Executors.newFixedThreadPool(3);

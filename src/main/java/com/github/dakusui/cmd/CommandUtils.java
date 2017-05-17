@@ -115,7 +115,7 @@ public enum CommandUtils {
       try {
         return future.get(timeOut, TimeUnit.MILLISECONDS);
       } catch (InterruptedException | ExecutionException e) {
-        throw new CommandException(e);
+        throw Exceptions.wrap(e);
       } catch (TimeoutException e) {
         throw new CommandTimeoutException(e.getMessage(), e);
       } finally {

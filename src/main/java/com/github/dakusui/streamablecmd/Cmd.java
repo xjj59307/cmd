@@ -188,7 +188,10 @@ public interface Cmd {
       private IntPredicate     exitValueConsumer = this::exitValue;
 
       protected Base(Stream<String> stdin) {
-        this.stdin = Exceptions.Arguments.requireNonNull(stdin);
+        this.stdin = Stream.concat(
+            Exceptions.Arguments.requireNonNull(stdin),
+            Stream.of((String) null)
+        );
       }
 
       @Override

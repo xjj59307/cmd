@@ -2,15 +2,30 @@ package com.github.dakusui.cmd;
 
 import com.github.dakusui.cmd.exceptions.CommandTimeoutException;
 import junit.framework.TestCase;
+import org.hamcrest.CoreMatchers;
 import org.junit.Assert;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import static java.lang.String.format;
+import static org.junit.Assert.assertThat;
 
 public class CommandRunnerTest {
-  private static Logger LOGGER = LoggerFactory.getLogger(CommandRunnerTest.class);
+  /**
+   * A dummy logger class for compatibility
+   */
+  static class DummyLogger {
+    void info(String message, Object... args) {
+    }
+
+    void debug(String message, Object... args) {
+    }
+
+    void error(String message, Object... args) {
+    }
+  }
+
+  private static DummyLogger LOGGER = new DummyLogger() {
+  };
 
   private void assertCommandResult(String stdout, String stderr, String stdouterr, int exitCode, CommandResult result) {
     Assert.assertEquals(stdout, result.stdout());
@@ -174,7 +189,6 @@ public class CommandRunnerTest {
         expected.append(System.getProperty("line.separator"));
       }
     }
-    System.err.println(cmd);
     CommandResult result = CommandUtils.runLocal(cmd.toString());
     TestCase.assertEquals(expected.toString(), result.stdout());
     TestCase.assertEquals("", result.stderr());
@@ -236,7 +250,10 @@ public class CommandRunnerTest {
 
   @Test
   public void test_14_1() throws Exception {
-    System.out.println(CommandUtils.runLocal("echo hello | cat -n").stdout());
+    assertThat(
+        CommandUtils.runLocal("echo hello | cat -n").stdout(),
+        CoreMatchers.containsString("1\thello")
+    );
   }
 
   @Test(timeout = 5000)
@@ -256,7 +273,6 @@ public class CommandRunnerTest {
   @Test(timeout = 5000)
   public void runLocal_outputLargeDataToBothStdoutAndStderr_1() throws Exception {
     String cmd = format("cat /dev/zero | head -c 100000 | %s 80 >&2 && cat /dev/zero | head -c 100000 | %s 80", base64(), base64());
-    System.out.println(cmd);
     String expected = buildExpectedData(80, 54);
     CommandResult result = CommandUtils.runLocal(cmd);
     // AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA

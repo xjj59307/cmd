@@ -1,5 +1,6 @@
 package com.github.dakusui.streamablecmd.ut;
 
+import com.github.dakusui.cmd.TestUtils;
 import com.github.dakusui.streamablecmd.Cmd;
 import com.github.dakusui.streamablecmd.exceptions.CommandExecutionException;
 import org.junit.Test;
@@ -8,7 +9,7 @@ import java.io.IOException;
 import java.util.Date;
 import java.util.stream.Stream;
 
-public class CmdTest {
+public class CmdTest extends TestUtils.StdOutTestBase {
   private Cmd.Io defaultIo = createIo(Stream.empty());
 
   private Cmd.Io.Base createIo(Stream<String> stdin) {
@@ -63,8 +64,8 @@ public class CmdTest {
       new Cmd.Builder()
           .withShell(
               new Cmd.Shell.Builder.ForSsh("localhost")
-                  .userName("hiroshi.ukai")
-                  .identity("/Users/hiroshi.ukai/.ssh/id_rsa.p25283")
+                  .userName(TestUtils.userName())
+                  .identity(TestUtils.userName())
                   .build()
           )
           .add("echo")
@@ -80,7 +81,7 @@ public class CmdTest {
     }
   }
 
-  //@Test(timeout = 15_000)
+  @Test(timeout = 15_000)
   public void main4() throws IOException {
     try {
       new Cmd.Builder()
@@ -131,4 +132,5 @@ public class CmdTest {
   private static String systemName() {
     return System.getProperty("os.name");
   }
+
 }

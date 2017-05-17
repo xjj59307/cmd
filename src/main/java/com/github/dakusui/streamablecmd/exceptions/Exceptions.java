@@ -94,6 +94,6 @@ public enum Exceptions {
       throw (Error) throwable;
     if (throwable instanceof RuntimeException)
       throw (RuntimeException) throwable;
-    throw new CommandException(throwable);
+    throw new CommandException(null, throwable);
   }
 }
