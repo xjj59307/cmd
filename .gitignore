@@ -2,5 +2,5 @@
 /jcoverage.ser
 /.djunitplugin
 /.settings
-.idea
-commandrunner.iml
+/.idea
+/commandrunner.iml
