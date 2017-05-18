@@ -20,6 +20,11 @@ public class CmdTest extends TestUtils.StdOutTestBase {
         .build();
   }
 
+  @Test(timeout = 10_000)
+  public void simplyEchoHello() {
+    Cmd.run(Shell.local(), "echo hello").forEach(System.out::println);
+  }
+
   @Test(expected = CommandExecutionException.class)
   public void givenCommandExitWith1$whenRunLocally$thenCommandExecutionExceptionThrown() {
     Cmd.run(Shell.local(), "echo hello && exit 1").forEach(System.out::println);

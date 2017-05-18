@@ -4,13 +4,13 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.github.dakusui</groupId>
-    <artifactId>commandstreamer</artifactId>
-    <version>0.0.9-SNAPSHOT</version>
-    <description>Command line runner library for Java</description>
+    <artifactId>cmdstreamer</artifactId>
+    <version>0.2.0-SNAPSHOT</version>
+    <description>Command line streamer library for Java 8</description>
     <packaging>jar</packaging>
 
-    <name>commandstreamer</name>
-    <url>https://github.com/dakusui/commandstreamer</url>
+    <name>cmdstreamer</name>
+    <url>https://github.com/dakusui/cmdstreamer</url>
 
     <licenses>
         <license>
@@ -21,12 +21,12 @@
     </licenses>
 
     <scm>
-        <connection>scm:git:git://github.com/dakusui/commandstreamer.git
+        <connection>scm:git:git://github.com/dakusui/cmdstreamer.git
         </connection>
         <developerConnection>
-            scm:git:git@github.com:dakusui/commandstreamer.git
+            scm:git:git@github.com:dakusui/cmdstreamer.git
         </developerConnection>
-        <url>http://github.com/dakusui/commandstreamer</url>
+        <url>http://github.com/dakusui/cmdstreamer</url>
         <tag>HEAD</tag>
     </scm>
 
