@@ -274,7 +274,10 @@ public interface Cmd {
         return new Io() {
           @Override
           public Stream<String> stdin() {
-            return Builder.this.stdin;
+            return Stream.concat(
+                Builder.this.stdin,
+                Stream.of((String) null)
+            );
           }
 
           @Override
@@ -309,46 +312,5 @@ public interface Cmd {
         };
       }
     }
-
-    abstract class Base implements Io {
-      private final Stream<String> stdin;
-      private Consumer<String> stdoutConsumer    = this::consumeStdout;
-      private Consumer<String> stderrConsumer    = this::consumeStderr;
-      private IntPredicate     exitValueConsumer = this::checkExitValue;
-
-      protected Base(Stream<String> stdin) {
-        this.stdin = Stream.concat(
-            Objects.requireNonNull(stdin),
-            Stream.of((String) null)
-        );
-      }
-
-      @Override
-      public Stream<String> stdin() {
-        return this.stdin;
-      }
-
-      @Override
-      public Consumer<String> stdoutConsumer() {
-        return stdoutConsumer;
-      }
-
-      @Override
-      public Consumer<String> stderrConsumer() {
-        return stderrConsumer;
-      }
-
-      @Override
-      public IntPredicate exitValueChecker() {
-        return this.exitValueConsumer;
-      }
-
-      abstract protected void consumeStdout(String s);
-
-      abstract protected void consumeStderr(String s);
-
-      abstract protected boolean checkExitValue(int exitValue);
-    }
   }
-
 }
