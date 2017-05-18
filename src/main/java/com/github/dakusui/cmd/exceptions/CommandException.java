@@ -5,15 +5,18 @@ package com.github.dakusui.cmd.exceptions;
  *
  * @author ukaihiroshi01
  */
-public class CommandException extends RuntimeException {
+public abstract class CommandException extends RuntimeException {
   /**
    * Creates an object of this class.
    *
    * @param msg A message string to be set.
-   * @param t
+   * @param t   A nested exception
    */
-  public CommandException(String msg, Throwable t) {
-    super(msg != null ? msg + "(" + t.getMessage() + ")" : t.getMessage());
-    this.setStackTrace(t.getStackTrace());
+  CommandException(String msg, Throwable t) {
+    super(msg, t);
+  }
+
+  CommandException(Throwable throwable) {
+    super(throwable);
   }
 }

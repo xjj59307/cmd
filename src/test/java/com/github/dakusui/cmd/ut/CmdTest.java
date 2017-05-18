@@ -1,8 +1,9 @@
-package com.github.dakusui.streamablecmd.ut;
+package com.github.dakusui.cmd.ut;
 
-import com.github.dakusui.cmd.TestUtils;
-import com.github.dakusui.streamablecmd.Cmd;
-import com.github.dakusui.streamablecmd.exceptions.CommandExecutionException;
+import com.github.dakusui.cmd.Cmd;
+import com.github.dakusui.cmd.Shell;
+import com.github.dakusui.cmd.exceptions.CommandExecutionException;
+import com.github.dakusui.cmd.utils.TestUtils;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -12,40 +13,23 @@ import java.util.stream.Stream;
 public class CmdTest extends TestUtils.StdOutTestBase {
   private Cmd.Io defaultIo = createIo(Stream.empty());
 
-  private Cmd.Io.Base createIo(Stream<String> stdin) {
-    return new Cmd.Io.Base(stdin) {
-      @Override
-      public boolean redirectsStdout() {
-        return true;
-      }
+  private Cmd.Io createIo(Stream<String> stdin) {
+    return new Cmd.Io.Builder(stdin)
+        .configureStdout(s -> System.out.println(new Date() + ":" + s))
+        .configureStderr(s -> System.err.println(new Date() + ":" + s))
+        .build();
+  }
 
-      @Override
-      public boolean redirectsStderr() {
-        return false;
-      }
-
-      @Override
-      protected void consumeStdout(String s) {
-        System.out.println(new Date() + ":" + s);
-      }
-
-      @Override
-      protected void consumeStderr(String s) {
-        System.err.println(new Date() + ":" + s);
-      }
-
-      @Override
-      protected boolean exitValue(int exitValue) {
-        return exitValue == 0;
-      }
-    };
+  @Test(expected = CommandExecutionException.class)
+  public void givenCommandExitWith1$whenRunLocally$thenCommandExecutionExceptionThrown() {
+    Cmd.run(Shell.local(), "echo hello && exit 1").forEach(System.out::println);
   }
 
   @Test(expected = CommandExecutionException.class)
   public void main2() throws IOException {
     try {
       new Cmd.Builder()
-          .withShell(new Cmd.Shell.Builder.ForLocal().build())
+          .withShell(new Shell.Builder.ForLocal().build())
           .add("echo $(which echo) && echo \"hello\" && cat hello")
           .configure(defaultIo)
           .build()
@@ -63,9 +47,9 @@ public class CmdTest extends TestUtils.StdOutTestBase {
     try {
       new Cmd.Builder()
           .withShell(
-              new Cmd.Shell.Builder.ForSsh("localhost")
+              new Shell.Builder.ForSsh("localhost")
                   .userName(TestUtils.userName())
-                  .identity(TestUtils.userName())
+                  .identity(TestUtils.identity())
                   .build()
           )
           .add("echo")
@@ -85,7 +69,7 @@ public class CmdTest extends TestUtils.StdOutTestBase {
   public void main4() throws IOException {
     try {
       new Cmd.Builder()
-          .withShell(new Cmd.Shell.Builder.ForLocal().build())
+          .withShell(new Shell.Builder.ForLocal().build())
           .configure(createIo(Stream.of("hello", "world", "everyone")))
           .add("cat -n")
           .build()
@@ -102,11 +86,11 @@ public class CmdTest extends TestUtils.StdOutTestBase {
   public void main1() throws IOException {
     try {
       Cmd cmd = new Cmd.Builder()
-          .withShell(new Cmd.Shell.Builder.ForLocal().withProgram("sh").addOption("-c").build())
+          .withShell(new Shell.Builder.ForLocal().withProgram("sh").clearOptions().addOption("-c").build())
           .add(String.format("cat /dev/zero | head -c 100000 | %s 80", base64()))
           .configure(createIo(Stream.of("Hello", "world")))
           .build();
-      System.out.println("commandLine=" + cmd.getCommandLine());
+      System.out.println("commandLine=" + cmd.getShell());
       cmd.run()
           .forEach(System.out::println);
     } catch (CommandExecutionException e) {

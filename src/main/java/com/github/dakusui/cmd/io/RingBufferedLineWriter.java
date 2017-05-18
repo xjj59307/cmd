@@ -6,7 +6,7 @@ public class RingBufferedLineWriter implements LineWriter {
 
   public RingBufferedLineWriter(int size) {
     if (size <= 0)
-      throw new IllegalArgumentException(String.format("size must be greater than 0. (%d)", size));
+      throw new IllegalArgumentException("Size must be greater than 0 but given was: " + size);
     this.ringBuffer = new String[size];
     this.next = 0;
   }
@@ -18,7 +18,7 @@ public class RingBufferedLineWriter implements LineWriter {
   }
 
   public String asString() {
-    StringBuffer b = new StringBuffer();
+    StringBuilder b = new StringBuilder();
     for (int i = 0; i < ringBuffer.length; i++) {
       String s = ringBuffer[(this.next + i) % ringBuffer.length];
       if (s != null) {

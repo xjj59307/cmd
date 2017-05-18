@@ -1,11 +1,10 @@
 package com.github.dakusui.cmd;
 
 import com.github.dakusui.cmd.exceptions.CommandException;
+import com.github.dakusui.cmd.exceptions.CommandExecutionException;
 import com.github.dakusui.cmd.exceptions.CommandTimeoutException;
+import com.github.dakusui.cmd.exceptions.Exceptions;
 import com.github.dakusui.cmd.io.RingBufferedLineWriter;
-import com.github.dakusui.streamablecmd.Cmd;
-import com.github.dakusui.streamablecmd.exceptions.CommandExecutionException;
-import com.github.dakusui.streamablecmd.exceptions.Exceptions;
 
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
@@ -21,7 +20,7 @@ public enum CommandUtils {
   public static CommandResult run(int timeOut, String[] execShell, String command) throws CommandException {
     return run(
         timeOut,
-        new Cmd.Shell.Builder.ForLocal()
+        new Shell.Builder.ForLocal()
             .withProgram(execShell[0])
             .clearOptions()
             .addAllOptions(asList(execShell).subList(1, execShell.length))
@@ -30,7 +29,7 @@ public enum CommandUtils {
     );
   }
 
-  public static CommandResult run(int timeOut, Cmd.Shell shell, String command) throws CommandException {
+  public static CommandResult run(int timeOut, Shell shell, String command) throws CommandException {
     RingBufferedLineWriter stdout = new RingBufferedLineWriter(100);
     RingBufferedLineWriter stderr = new RingBufferedLineWriter(100);
     RingBufferedLineWriter stdouterr = new RingBufferedLineWriter(100);
@@ -38,42 +37,29 @@ public enum CommandUtils {
     Cmd cmd = new Cmd.Builder()
         .withShell(shell)
         .add(command)
-        .configure(new Cmd.Io.Base(Stream.empty()) {
-          @Override
-          public boolean redirectsStdout() {
-            return true;
-          }
-
-          @Override
-          public boolean redirectsStderr() {
-            return false;
-          }
-
-          @Override
-          protected void consumeStdout(String s) {
-            stdout.write(s);
-            stdouterr.write(s);
-          }
-
-          @Override
-          protected void consumeStderr(String s) {
-            stderr.write(s);
-            stdouterr.write(s);
-          }
-
-          @Override
-          protected boolean exitValue(int exitValue) {
-            synchronized (exitValueHolder) {
-              exitValueHolder.set(exitValue);
-              exitValueHolder.notifyAll();
-              return exitValue == 0;
-            }
-          }
-        })
+        .configure(
+            new Cmd.Io.Builder(Stream.empty())
+                .configureStdout(s -> {
+                  stdout.write(s);
+                  stdouterr.write(s);
+                })
+                .configureStderr(s -> {
+                  stderr.write(s);
+                  stdouterr.write(s);
+                })
+                .checkExitValueWith(exitValue -> {
+                  synchronized (exitValueHolder) {
+                    exitValueHolder.set(exitValue);
+                    exitValueHolder.notifyAll();
+                    return exitValue == 0;
+                  }
+                })
+                .build()
+        )
         .build();
 
     final Callable<CommandResult> callable = () -> {
-      String commandLine = String.join(" ", cmd.getCommandLine());
+      String commandLine = String.join(" ", cmd.getShell());
       try {
         cmd.run().forEach(s -> {
         });
@@ -117,7 +103,7 @@ public enum CommandUtils {
       } catch (InterruptedException | ExecutionException e) {
         throw Exceptions.wrap(e);
       } catch (TimeoutException e) {
-        throw new CommandTimeoutException(e.getMessage(), e);
+        throw Exceptions.wrap(e, CommandTimeoutException::new);
       } finally {
         executor.shutdownNow();
       }

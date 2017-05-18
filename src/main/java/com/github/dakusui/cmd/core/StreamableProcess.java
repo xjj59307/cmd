@@ -1,4 +1,4 @@
-package com.github.dakusui.streamablecmd.core;
+package com.github.dakusui.cmd.core;
 
 import java.io.InputStream;
 import java.io.OutputStream;

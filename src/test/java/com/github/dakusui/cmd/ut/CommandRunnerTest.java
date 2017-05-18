@@ -1,5 +1,8 @@
-package com.github.dakusui.cmd;
+package com.github.dakusui.cmd.ut;
 
+import com.github.dakusui.cmd.CommandResult;
+import com.github.dakusui.cmd.CommandUtils;
+import com.github.dakusui.cmd.utils.TestUtils;
 import com.github.dakusui.cmd.exceptions.CommandTimeoutException;
 import junit.framework.TestCase;
 import org.hamcrest.CoreMatchers;
@@ -171,7 +174,7 @@ public class CommandRunnerTest {
     TestCase.assertEquals(0, result.exitCode());
   }
 
-  @Test//(timeout = 10_000)
+  @Test(timeout = 10_000)
   public void test_11() throws Exception {
     LOGGER.info("test-11");
     StringBuilder cmd = new StringBuilder();

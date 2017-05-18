@@ -1,7 +1,7 @@
-package com.github.dakusui.streamablecmd.ut;
+package com.github.dakusui.cmd.ut;
 
-import com.github.dakusui.cmd.TestUtils;
-import com.github.dakusui.streamablecmd.core.Selector;
+import com.github.dakusui.cmd.utils.TestUtils;
+import com.github.dakusui.cmd.core.Selector;
 import org.junit.Test;
 
 import java.util.ArrayList;

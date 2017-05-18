@@ -1,5 +1,6 @@
-package com.github.dakusui.cmd;
+package com.github.dakusui.cmd.utils;
 
+import com.github.dakusui.cmd.CommandUtils;
 import org.junit.After;
 import org.junit.Before;
 
