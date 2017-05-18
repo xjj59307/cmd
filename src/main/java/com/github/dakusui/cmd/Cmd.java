@@ -3,7 +3,6 @@ package com.github.dakusui.cmd;
 import com.github.dakusui.cmd.core.Selector;
 import com.github.dakusui.cmd.core.StreamableProcess;
 import com.github.dakusui.cmd.exceptions.CommandExecutionException;
-import com.github.dakusui.cmd.exceptions.CommandTimeoutException;
 import com.github.dakusui.cmd.exceptions.Exceptions;
 
 import java.io.IOException;
@@ -14,14 +13,12 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.IntPredicate;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import static java.util.Arrays.asList;
-import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.stream.Collectors.toList;
 
 public interface Cmd {
@@ -36,7 +33,11 @@ public interface Cmd {
   static Stream<String> run(Shell shell, Io io, String... commandLine) {
     return new Cmd.Builder() {{
       Arrays.stream(commandLine).forEach(this::add);
-    }}.withShell(shell).configure(io).build().run();
+    }}
+        .withShell(shell)
+        .configure(io)
+        .build()
+        .run();
   }
 
   class Builder {
@@ -125,7 +126,7 @@ public interface Cmd {
                 try {
                   try {
                     try {
-                      int exitValue = waitFor(process, io.timeoutInNanos());
+                      int exitValue = waitFor(process);
                       if (!(this.io.exitValueChecker().test(exitValue))) {
                         throw new CommandExecutionException(
                             exitValue,
@@ -166,11 +167,9 @@ public interface Cmd {
       return String.format("%s '%s'", String.join(" ", this.shell), this.command);
     }
 
-    private int waitFor(Process process, long timeout) {
+    private int waitFor(Process process) {
       try {
-        if (!process.waitFor(timeout, NANOSECONDS))
-          throw new CommandTimeoutException("");
-        return process.exitValue();
+        return process.waitFor();
       } catch (InterruptedException e) {
         throw Exceptions.wrap(e);
       }
@@ -211,8 +210,6 @@ public interface Cmd {
 
     IntPredicate exitValueChecker();
 
-    long timeoutInNanos();
-
     class Builder {
       private static final Consumer<String> NOP = s -> {
       };
@@ -222,9 +219,12 @@ public interface Cmd {
       private Consumer<String> stderrConsumer   = NOP;
       private boolean          redirectsStdout  = true;
       private boolean          redirectsStderr  = false;
-      private long             timeoutInNanos   = -1; // -1 means never
       private IntPredicate     exitValueChecker = value -> value == 0;
 
+
+      public Builder() {
+        this(Stream.empty());
+      }
 
       public Builder(Stream<String> stdin) {
         this.stdin = Objects.requireNonNull(stdin);
@@ -252,21 +252,6 @@ public interface Cmd {
 
       public Builder checkExitValueWith(IntPredicate exitValueChecker) {
         this.exitValueChecker = exitValueChecker;
-        return this;
-      }
-
-      public Builder timeout(long timeout, TimeUnit timeUnit) {
-        if (timeout < 0) {
-          return this.timeoutInNanos(-1);
-        }
-        return this.timeoutInNanos(Objects.requireNonNull(timeUnit).toNanos(timeout));
-      }
-
-      /**
-       * If negative value is set, it will be considered 'never times out'
-       */
-      public Builder timeoutInNanos(long timeoutInNanos) {
-        this.timeoutInNanos = timeoutInNanos;
         return this;
       }
 
@@ -303,11 +288,6 @@ public interface Cmd {
           @Override
           public IntPredicate exitValueChecker() {
             return Builder.this.exitValueChecker;
-          }
-
-          @Override
-          public long timeoutInNanos() {
-            return Builder.this.timeoutInNanos;
           }
         };
       }
