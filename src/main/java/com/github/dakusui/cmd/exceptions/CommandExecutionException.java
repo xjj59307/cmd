@@ -1,4 +1,4 @@
-package com.github.dakusui.streamablecmd.exceptions;
+package com.github.dakusui.cmd.exceptions;
 
 import java.util.stream.Collectors;
 import java.util.stream.Stream;

@@ -1,6 +1,8 @@
-package com.github.dakusui.cmd.io;
+package com.github.dakusui.cmd.ut.io;
 
-import com.github.dakusui.cmd.TestUtils;
+import com.github.dakusui.cmd.io.BasicLineReader;
+import com.github.dakusui.cmd.io.LineReader;
+import com.github.dakusui.cmd.utils.TestUtils;
 import com.github.dakusui.cmd.exceptions.CommandException;
 import org.junit.Test;
 

@@ -1,9 +1,10 @@
 package com.github.dakusui.cmd;
 
-import com.github.dakusui.cmd.io.LineReaderTest;
-import com.github.dakusui.cmd.io.RingBufferedLineWriterTest;
-import com.github.dakusui.streamablecmd.ut.CmdTest;
-import com.github.dakusui.streamablecmd.ut.SelectorTest;
+import com.github.dakusui.cmd.ut.io.LineReaderTest;
+import com.github.dakusui.cmd.ut.io.RingBufferedLineWriterTest;
+import com.github.dakusui.cmd.ut.CommandRunnerTest;
+import com.github.dakusui.cmd.ut.CmdTest;
+import com.github.dakusui.cmd.ut.SelectorTest;
 import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;

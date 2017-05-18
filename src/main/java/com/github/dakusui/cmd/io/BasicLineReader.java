@@ -1,7 +1,7 @@
 package com.github.dakusui.cmd.io;
 
 import com.github.dakusui.cmd.exceptions.CommandException;
-import com.github.dakusui.streamablecmd.exceptions.Exceptions;
+import com.github.dakusui.cmd.exceptions.Exceptions;
 import org.apache.commons.lang3.ArrayUtils;
 
 import java.io.*;

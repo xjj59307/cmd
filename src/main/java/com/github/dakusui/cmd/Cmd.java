@@ -1,14 +1,13 @@
-package com.github.dakusui.streamablecmd;
+package com.github.dakusui.cmd;
 
-import com.github.dakusui.streamablecmd.core.Selector;
-import com.github.dakusui.streamablecmd.core.StreamableProcess;
-import com.github.dakusui.streamablecmd.exceptions.CommandExecutionException;
-import com.github.dakusui.streamablecmd.exceptions.Exceptions;
-import com.github.dakusui.streamablecmd.exceptions.Exceptions.Arguments;
+import com.github.dakusui.cmd.core.Selector;
+import com.github.dakusui.cmd.core.StreamableProcess;
+import com.github.dakusui.cmd.exceptions.CommandExecutionException;
+import com.github.dakusui.cmd.exceptions.Exceptions;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -19,18 +18,28 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import static java.util.Arrays.asList;
-import static java.util.stream.Collectors.toList;
 
 public interface Cmd {
   Stream<String> run();
 
   List<String> getCommandLine();
 
+  static Stream<String> run(Shell shell, String... commandLine) {
+    return run(shell, Io.DEFAULT, commandLine);
+  }
+
+  static Stream<String> run(Shell shell, Io io, String... commandLine) {
+    return new Cmd.Builder() {{
+      Arrays.stream(commandLine).forEach(this::add);
+    }}.withShell(shell).configure(io).build().run();
+  }
+
+
   class Builder {
     Shell shell;
     List<String> command = new LinkedList<>();
     Charset      charset = Charset.defaultCharset();
-    Io config;
+    Io           config  = Io.DEFAULT;
 
 
     public Builder add(String arg) {
@@ -79,12 +88,6 @@ public interface Cmd {
       this.io = io;
     }
 
-    private StreamableProcess startProcess() {
-      return new StreamableProcess(
-          createProcess(this.commandLine),
-          charset);
-    }
-
     @Override
     public Stream<String> run() {
       StreamableProcess process = startProcess();
@@ -123,6 +126,8 @@ public interface Cmd {
                       if (!(this.io.exitValue().test(exitValue))) {
                         throw new CommandExecutionException(exitValue, this.getCommandLine().toArray(new String[0]), process.getPid());
                       }
+                      ////
+                      // A sentinel shouldn't be passed to following stages.
                       return false;
                     } finally {
                       process.stdout().close();
@@ -144,7 +149,12 @@ public interface Cmd {
       );
     }
 
-    int waitFor(Process process) {
+    @Override
+    public List<String> getCommandLine() {
+      return asList(commandLine);
+    }
+
+    private int waitFor(Process process) {
       try {
         return process.waitFor();
       } catch (InterruptedException e) {
@@ -152,9 +162,10 @@ public interface Cmd {
       }
     }
 
-    @Override
-    public List<String> getCommandLine() {
-      return asList(commandLine);
+    private StreamableProcess startProcess() {
+      return new StreamableProcess(
+          createProcess(this.commandLine),
+          charset);
     }
 
     private Process createProcess(String[] commandLine) {
@@ -251,138 +262,4 @@ public interface Cmd {
     }
   }
 
-  interface Shell {
-    class Impl implements Shell {
-      private final String       program;
-      private final List<String> options;
-
-      Impl(String program, List<String> options) {
-        this.program = program;
-        this.options = options;
-      }
-
-      String program() {
-        return program;
-      }
-
-      List<String> options() {
-        return options;
-      }
-
-      public String[] buildCommandLine(String command) {
-        return Stream.concat(
-            Stream.concat(
-                Stream.of(program()),
-                options().stream()
-            ),
-            Stream.of(command)
-        ).collect(toList()).toArray(new String[0]);
-      }
-    }
-
-    String[] buildCommandLine(String command);
-
-    abstract class Builder<B extends Builder> {
-      private String program;
-      private List<String> options = new LinkedList<>();
-
-      @SuppressWarnings("unchecked")
-      public B withProgram(String program) {
-        this.program = Exceptions.Arguments.requireNonNull(program);
-        return (B) this;
-      }
-
-      @SuppressWarnings("unchecked")
-      public B clearOptions() {
-        this.options.clear();
-        return (B) this;
-      }
-
-      @SuppressWarnings("unchecked")
-      public B addOption(String option) {
-        this.options.add(option);
-        return (B) this;
-      }
-
-      @SuppressWarnings("unchecked")
-      public B addOption(String option, String value) {
-        this.options.add(option);
-        this.options.add(value);
-        return (B) this;
-      }
-
-      String getProgram() {
-        return this.program;
-      }
-
-      List<String> getOptions() {
-        return this.options;
-      }
-
-      public Shell build() {
-        Arguments.requireNonNull(this.program);
-        return new Shell.Impl(getProgram(), this.getOptions());
-      }
-
-      @SuppressWarnings("unchecked")
-      public B addAllOptions(List<String> options) {
-        options.forEach(this::addOption);
-        return (B) this;
-      }
-
-      public static class ForLocal extends Builder<ForLocal> {
-        public ForLocal() {
-          this.withProgram("sh")
-              .addOption("-c");
-        }
-      }
-
-      public static class ForSsh extends Builder<ForSsh> {
-        private       String userName;
-        private final String hostName;
-        private String identity = null;
-
-        public ForSsh(String hostName) {
-          this.hostName = Arguments.requireNonNull(hostName);
-          this.withProgram("ssh")
-              .addOption("-o", "PasswordAuthentication=no")
-              .addOption("-o", "StrictHostkeyChecking=no");
-        }
-
-        public ForSsh userName(String userName) {
-          this.userName = userName;
-          return this;
-        }
-
-        public ForSsh identity(String identity) {
-          this.identity = identity;
-          return this;
-        }
-
-        List<String> getOptions() {
-          return Stream.concat(
-              super.getOptions().stream(),
-              Stream.concat(
-                  composeIdentity().stream(),
-                  Stream.of(
-                      composeAccount()
-                  )
-              )
-          ).collect(toList());
-        }
-
-        List<String> composeIdentity() {
-          return identity == null ?
-              Collections.emptyList() :
-              asList("-i", identity);
-        }
-
-        String composeAccount() {
-          return userName == null ?
-              hostName :
-              String.format("%s@%s", userName, hostName);
-        }
-      }
-    }
-  }
 }

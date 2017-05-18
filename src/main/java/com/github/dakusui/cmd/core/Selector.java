@@ -1,4 +1,4 @@
-package com.github.dakusui.streamablecmd.core;
+package com.github.dakusui.cmd.core;
 
 import java.util.*;
 import java.util.concurrent.*;

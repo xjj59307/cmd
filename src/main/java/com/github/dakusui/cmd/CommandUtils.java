@@ -3,9 +3,8 @@ package com.github.dakusui.cmd;
 import com.github.dakusui.cmd.exceptions.CommandException;
 import com.github.dakusui.cmd.exceptions.CommandTimeoutException;
 import com.github.dakusui.cmd.io.RingBufferedLineWriter;
-import com.github.dakusui.streamablecmd.Cmd;
-import com.github.dakusui.streamablecmd.exceptions.CommandExecutionException;
-import com.github.dakusui.streamablecmd.exceptions.Exceptions;
+import com.github.dakusui.cmd.exceptions.CommandExecutionException;
+import com.github.dakusui.cmd.exceptions.Exceptions;
 
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
@@ -21,7 +20,7 @@ public enum CommandUtils {
   public static CommandResult run(int timeOut, String[] execShell, String command) throws CommandException {
     return run(
         timeOut,
-        new Cmd.Shell.Builder.ForLocal()
+        new Shell.Builder.ForLocal()
             .withProgram(execShell[0])
             .clearOptions()
             .addAllOptions(asList(execShell).subList(1, execShell.length))
@@ -30,7 +29,7 @@ public enum CommandUtils {
     );
   }
 
-  public static CommandResult run(int timeOut, Cmd.Shell shell, String command) throws CommandException {
+  public static CommandResult run(int timeOut, Shell shell, String command) throws CommandException {
     RingBufferedLineWriter stdout = new RingBufferedLineWriter(100);
     RingBufferedLineWriter stderr = new RingBufferedLineWriter(100);
     RingBufferedLineWriter stdouterr = new RingBufferedLineWriter(100);

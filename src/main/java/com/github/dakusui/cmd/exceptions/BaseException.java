@@ -1,4 +1,4 @@
-package com.github.dakusui.streamablecmd.exceptions;
+package com.github.dakusui.cmd.exceptions;
 
 abstract class BaseException extends RuntimeException {
   BaseException(String message) {

@@ -1,6 +1,7 @@
-package com.github.dakusui.cmd.io;
+package com.github.dakusui.cmd.ut.io;
 
-import com.github.dakusui.cmd.TestUtils;
+import com.github.dakusui.cmd.io.RingBufferedLineWriter;
+import com.github.dakusui.cmd.utils.TestUtils;
 import org.junit.Assert;
 import org.junit.Test;
 

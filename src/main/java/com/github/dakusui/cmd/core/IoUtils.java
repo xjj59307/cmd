@@ -1,6 +1,6 @@
-package com.github.dakusui.streamablecmd.core;
+package com.github.dakusui.cmd.core;
 
-import com.github.dakusui.streamablecmd.exceptions.Exceptions;
+import com.github.dakusui.cmd.exceptions.Exceptions;
 
 import java.io.*;
 import java.nio.charset.Charset;

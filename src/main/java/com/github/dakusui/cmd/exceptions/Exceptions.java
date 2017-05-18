@@ -1,6 +1,4 @@
-package com.github.dakusui.streamablecmd.exceptions;
-
-import com.github.dakusui.cmd.exceptions.CommandException;
+package com.github.dakusui.cmd.exceptions;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.Objects;
