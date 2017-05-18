@@ -1,10 +1,10 @@
 package com.github.dakusui.cmd;
 
 import com.github.dakusui.cmd.exceptions.CommandException;
-import com.github.dakusui.cmd.exceptions.CommandTimeoutException;
-import com.github.dakusui.cmd.io.RingBufferedLineWriter;
 import com.github.dakusui.cmd.exceptions.CommandExecutionException;
+import com.github.dakusui.cmd.exceptions.CommandTimeoutException;
 import com.github.dakusui.cmd.exceptions.Exceptions;
+import com.github.dakusui.cmd.io.RingBufferedLineWriter;
 
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
@@ -37,38 +37,25 @@ public enum CommandUtils {
     Cmd cmd = new Cmd.Builder()
         .withShell(shell)
         .add(command)
-        .configure(new Cmd.Io.Base(Stream.empty()) {
-          @Override
-          public boolean redirectsStdout() {
-            return true;
-          }
-
-          @Override
-          public boolean redirectsStderr() {
-            return false;
-          }
-
-          @Override
-          protected void consumeStdout(String s) {
-            stdout.write(s);
-            stdouterr.write(s);
-          }
-
-          @Override
-          protected void consumeStderr(String s) {
-            stderr.write(s);
-            stdouterr.write(s);
-          }
-
-          @Override
-          protected boolean exitValue(int exitValue) {
-            synchronized (exitValueHolder) {
-              exitValueHolder.set(exitValue);
-              exitValueHolder.notifyAll();
-              return exitValue == 0;
-            }
-          }
-        })
+        .configure(
+            new Cmd.Io.Builder(Stream.empty())
+                .configureStdout(s -> {
+                  stdout.write(s);
+                  stdouterr.write(s);
+                })
+                .configureStderr(s -> {
+                  stderr.write(s);
+                  stdouterr.write(s);
+                })
+                .checkExitValueWith(exitValue -> {
+                  synchronized (exitValueHolder) {
+                    exitValueHolder.set(exitValue);
+                    exitValueHolder.notifyAll();
+                    return exitValue == 0;
+                  }
+                })
+                .build()
+        )
         .build();
 
     final Callable<CommandResult> callable = () -> {
@@ -116,7 +103,7 @@ public enum CommandUtils {
       } catch (InterruptedException | ExecutionException e) {
         throw Exceptions.wrap(e);
       } catch (TimeoutException e) {
-        throw new CommandTimeoutException(e.getMessage(), e);
+        throw Exceptions.wrap(e, CommandTimeoutException::new);
       } finally {
         executor.shutdownNow();
       }

@@ -1,11 +1,12 @@
-package com.github.dakusui.cmd.io;
+package com.github.dakusui.cmd.ut.io;
 
 import com.github.dakusui.cmd.exceptions.CommandException;
 import com.github.dakusui.cmd.exceptions.Exceptions;
-import org.apache.commons.lang3.ArrayUtils;
+import com.github.dakusui.cmd.io.LineReader;
 
 import java.io.*;
 import java.nio.charset.Charset;
+import java.util.Arrays;
 
 public class BasicLineReader implements LineReader {
   /*
@@ -47,9 +48,9 @@ public class BasicLineReader implements LineReader {
           this.buf = new char[this.maxLineSize];
           int len = this.isReader.read(this.buf);
           if (len == -1)
-            return ret;
+            return null;
           if (len < this.buf.length) {
-            this.buf = ArrayUtils.subarray(this.buf, 0, len);
+            this.buf = subarray(this.buf, 0, len);
           }
         }
         ret = readFromBufferAndUpdate();
@@ -65,23 +66,19 @@ public class BasicLineReader implements LineReader {
     String ret = null;
     if (indexOfEOL == -1)
       indexOfEOL = this.buf.length;
-    ret = new String(ArrayUtils.subarray(this.buf, 0, indexOfEOL));
+    ret = new String(subarray(this.buf, 0, indexOfEOL));
     ////
     // If an EOL is at the end of the array, an empty string will be the
     // last element from the stream.
     if (indexOfEOL == this.buf.length) {
       this.buf = null;
     } else {
-      this.buf = ArrayUtils.subarray(this.buf, indexOfEOL + 1, this.buf.length);
+      this.buf = subarray(this.buf, indexOfEOL + 1, this.buf.length);
       if (this.buf.length == 0) {
         this.buf = null;
       }
     }
     return ret;
-  }
-
-  private int indexOfEOL(char[] buf) {
-    return ArrayUtils.indexOf(buf, EOL);
   }
 
   @Override
@@ -99,5 +96,22 @@ public class BasicLineReader implements LineReader {
             throw Exceptions.wrap(e);
           }
       }
+  }
+
+  private static char[] subarray(char[] buf, int i, int length) {
+    return Arrays.copyOfRange(buf, i, length);
+  }
+
+  private static int indexOfEOL(char[] buf) {
+    return indexOf(buf, EOL);
+  }
+
+  private static int indexOf(char[] array, char charToFind) {
+    for (int i = 0; i < array.length; i++) {
+      if (charToFind == array[i]) {
+        return i;
+      }
+    }
+    return -1;
   }
 }

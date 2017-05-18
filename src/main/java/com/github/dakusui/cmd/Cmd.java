@@ -3,6 +3,7 @@ package com.github.dakusui.cmd;
 import com.github.dakusui.cmd.core.Selector;
 import com.github.dakusui.cmd.core.StreamableProcess;
 import com.github.dakusui.cmd.exceptions.CommandExecutionException;
+import com.github.dakusui.cmd.exceptions.CommandTimeoutException;
 import com.github.dakusui.cmd.exceptions.Exceptions;
 
 import java.io.IOException;
@@ -10,14 +11,17 @@ import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.IntPredicate;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import static java.util.Arrays.asList;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.stream.Collectors.toList;
 
 public interface Cmd {
@@ -121,8 +125,8 @@ public interface Cmd {
                 try {
                   try {
                     try {
-                      int exitValue = waitFor(process);
-                      if (!(this.io.exitValue().test(exitValue))) {
+                      int exitValue = waitFor(process, io.timeoutInNanos());
+                      if (!(this.io.exitValueChecker().test(exitValue))) {
                         throw new CommandExecutionException(
                             exitValue,
                             this.toString(),
@@ -162,9 +166,11 @@ public interface Cmd {
       return String.format("%s '%s'", String.join(" ", this.shell), this.command);
     }
 
-    private int waitFor(Process process) {
+    private int waitFor(Process process, long timeout) {
       try {
-        return process.waitFor();
+        if (!process.waitFor(timeout, NANOSECONDS))
+          throw new CommandTimeoutException("");
+        return process.exitValue();
       } catch (InterruptedException e) {
         throw Exceptions.wrap(e);
       }
@@ -191,7 +197,7 @@ public interface Cmd {
   }
 
   interface Io {
-    Io DEFAULT = new Impl(Stream.empty());
+    Io DEFAULT = new Builder(Stream.empty()).build();
 
     Stream<String> stdin();
 
@@ -203,17 +209,116 @@ public interface Cmd {
 
     boolean redirectsStderr();
 
-    IntPredicate exitValue();
+    IntPredicate exitValueChecker();
+
+    long timeoutInNanos();
+
+    class Builder {
+      private static final Consumer<String> NOP = s -> {
+      };
+
+      private final Stream<String> stdin;
+      private Consumer<String> stdoutConsumer   = NOP;
+      private Consumer<String> stderrConsumer   = NOP;
+      private boolean          redirectsStdout  = true;
+      private boolean          redirectsStderr  = false;
+      private long             timeoutInNanos   = -1; // -1 means never
+      private IntPredicate     exitValueChecker = value -> value == 0;
+
+
+      public Builder(Stream<String> stdin) {
+        this.stdin = Objects.requireNonNull(stdin);
+      }
+
+      public Builder configureStdout(Consumer<String> consumer) {
+        return this.configureStdout(consumer, this.redirectsStdout);
+      }
+
+      public Builder configureStdout(Consumer<String> consumer, boolean redirect) {
+        this.stdoutConsumer = Objects.requireNonNull(consumer);
+        this.redirectsStdout = redirect;
+        return this;
+      }
+
+      public Builder configureStderr(Consumer<String> consumer) {
+        return this.configureStderr(consumer, this.redirectsStderr);
+      }
+
+      public Builder configureStderr(Consumer<String> consumer, boolean redirect) {
+        this.stderrConsumer = Objects.requireNonNull(consumer);
+        this.redirectsStderr = redirect;
+        return this;
+      }
+
+      public Builder checkExitValueWith(IntPredicate exitValueChecker) {
+        this.exitValueChecker = exitValueChecker;
+        return this;
+      }
+
+      public Builder timeout(long timeout, TimeUnit timeUnit) {
+        if (timeout < 0) {
+          return this.timeoutInNanos(-1);
+        }
+        return this.timeoutInNanos(Objects.requireNonNull(timeUnit).toNanos(timeout));
+      }
+
+      /**
+       * If negative value is set, it will be considered 'never times out'
+       */
+      public Builder timeoutInNanos(long timeoutInNanos) {
+        this.timeoutInNanos = timeoutInNanos;
+        return this;
+      }
+
+      public Io build() {
+        return new Io() {
+          @Override
+          public Stream<String> stdin() {
+            return Builder.this.stdin;
+          }
+
+          @Override
+          public Consumer<String> stdoutConsumer() {
+            return Builder.this.stdoutConsumer;
+          }
+
+          @Override
+          public Consumer<String> stderrConsumer() {
+            return Builder.this.stderrConsumer;
+          }
+
+          @Override
+          public boolean redirectsStdout() {
+            return Builder.this.redirectsStdout;
+          }
+
+          @Override
+          public boolean redirectsStderr() {
+            return Builder.this.redirectsStderr;
+          }
+
+          @Override
+          public IntPredicate exitValueChecker() {
+            return Builder.this.exitValueChecker;
+          }
+
+          @Override
+          public long timeoutInNanos() {
+            return Builder.this.timeoutInNanos;
+          }
+        };
+      }
+    }
 
     abstract class Base implements Io {
       private final Stream<String> stdin;
       private Consumer<String> stdoutConsumer    = this::consumeStdout;
       private Consumer<String> stderrConsumer    = this::consumeStderr;
-      private IntPredicate     exitValueConsumer = this::exitValue;
+      private IntPredicate     exitValueConsumer = this::checkExitValue;
 
       protected Base(Stream<String> stdin) {
         this.stdin = Stream.concat(
-            Exceptions.Arguments.requireNonNull(stdin),
+            Objects.requireNonNull(stdin),
             Stream.of((String) null)
         );
       }
@@ -234,7 +339,7 @@ public interface Cmd {
       }
 
       @Override
-      public IntPredicate exitValue() {
+      public IntPredicate exitValueChecker() {
         return this.exitValueConsumer;
       }
 
@@ -242,36 +347,7 @@ public interface Cmd {
 
       abstract protected void consumeStderr(String s);
 
-      abstract protected boolean exitValue(int exitValue);
-    }
-
-    class Impl extends Base {
-      Impl(Stream<String> stdin) {
-        super(stdin);
-      }
-
-      @Override
-      protected void consumeStdout(String s) {
-      }
-
-      @Override
-      protected void consumeStderr(String s) {
-      }
-
-      @Override
-      protected boolean exitValue(int exitValue) {
-        return exitValue == 0;
-      }
-
-      @Override
-      public boolean redirectsStdout() {
-        return true;
-      }
-
-      @Override
-      public boolean redirectsStderr() {
-        return false;
-      }
+      abstract protected boolean checkExitValue(int exitValue);
     }
   }
 

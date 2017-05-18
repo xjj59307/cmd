@@ -1,9 +1,9 @@
 package com.github.dakusui.cmd.ut;
 
-import com.github.dakusui.cmd.utils.TestUtils;
 import com.github.dakusui.cmd.Cmd;
 import com.github.dakusui.cmd.Shell;
 import com.github.dakusui.cmd.exceptions.CommandExecutionException;
+import com.github.dakusui.cmd.utils.TestUtils;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -13,33 +13,11 @@ import java.util.stream.Stream;
 public class CmdTest extends TestUtils.StdOutTestBase {
   private Cmd.Io defaultIo = createIo(Stream.empty());
 
-  private Cmd.Io.Base createIo(Stream<String> stdin) {
-    return new Cmd.Io.Base(stdin) {
-      @Override
-      public boolean redirectsStdout() {
-        return true;
-      }
-
-      @Override
-      public boolean redirectsStderr() {
-        return false;
-      }
-
-      @Override
-      protected void consumeStdout(String s) {
-        System.out.println(new Date() + ":" + s);
-      }
-
-      @Override
-      protected void consumeStderr(String s) {
-        System.err.println(new Date() + ":" + s);
-      }
-
-      @Override
-      protected boolean exitValue(int exitValue) {
-        return exitValue == 0;
-      }
-    };
+  private Cmd.Io createIo(Stream<String> stdin) {
+    return new Cmd.Io.Builder(stdin)
+        .configureStdout(s -> System.out.println(new Date() + ":" + s))
+        .configureStderr(s -> System.err.println(new Date() + ":" + s))
+        .build();
   }
 
   @Test(expected = CommandExecutionException.class)
@@ -108,7 +86,7 @@ public class CmdTest extends TestUtils.StdOutTestBase {
   public void main1() throws IOException {
     try {
       Cmd cmd = new Cmd.Builder()
-          .withShell(new Shell.Builder.ForLocal().withProgram("sh").addOption("-c").build())
+          .withShell(new Shell.Builder.ForLocal().withProgram("sh").clearOptions().addOption("-c").build())
           .add(String.format("cat /dev/zero | head -c 100000 | %s 80", base64()))
           .configure(createIo(Stream.of("Hello", "world")))
           .build();

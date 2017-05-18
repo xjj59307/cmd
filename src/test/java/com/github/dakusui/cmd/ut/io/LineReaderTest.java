@@ -1,6 +1,5 @@
 package com.github.dakusui.cmd.ut.io;
 
-import com.github.dakusui.cmd.io.BasicLineReader;
 import com.github.dakusui.cmd.io.LineReader;
 import com.github.dakusui.cmd.utils.TestUtils;
 import com.github.dakusui.cmd.exceptions.CommandException;
@@ -16,7 +15,7 @@ import static org.junit.Assert.assertEquals;
 
 public class LineReaderTest extends TestUtils.StdOutTestBase {
 
-  protected BasicLineReader createLineReader(int bufferSize, String input) {
+  private BasicLineReader createLineReader(int bufferSize, String input) {
     return createLineReader(
         bufferSize,
         new ByteArrayInputStream(
@@ -25,7 +24,7 @@ public class LineReaderTest extends TestUtils.StdOutTestBase {
     );
   }
 
-  protected BasicLineReader createLineReader(int bufferSize, InputStream is) {
+  private BasicLineReader createLineReader(int bufferSize, InputStream is) {
     return new BasicLineReader(
         Charset.defaultCharset(),
         bufferSize,
@@ -38,6 +37,17 @@ public class LineReaderTest extends TestUtils.StdOutTestBase {
     assertEquals("Hello, world", lineReader.read());
     assertEquals("Hi", lineReader.read());
     assertEquals(null, lineReader.read());
+    lineReader.close();
+  }
+
+
+  @Test
+  public void closeBeforeReadAll() throws CommandException {
+    LineReader lineReader = createLineReader(20, "Hello, world\nHi");
+    assertEquals("Hello, world", lineReader.read());
+    lineReader.close();
+    assertEquals("Hi", lineReader.read());
+    assertEquals(null, lineReader.read());
   }
 
   @Test
@@ -45,6 +55,7 @@ public class LineReaderTest extends TestUtils.StdOutTestBase {
     LineReader lineReader = createLineReader(20, "Hello, world");
     assertEquals("Hello, world", lineReader.read());
     assertEquals(null, lineReader.read());
+    lineReader.close();
   }
 
   @Test
@@ -89,6 +100,7 @@ public class LineReaderTest extends TestUtils.StdOutTestBase {
     LineReader lineReader = createLineReader(0, proc.getInputStream());
     assertEquals("hello", lineReader.read());
     assertEquals(null, lineReader.read());
+    lineReader.close();
   }
 
 

@@ -6,13 +6,13 @@ import java.util.stream.Stream;
 /**
  * Thrown when a command executed by 'streamable-cmd' exits with an error.
  */
-public class CommandExecutionException extends BaseException {
+public class CommandExecutionException extends CommandException {
   final private int    exitCode;
   private final String commandLine;
   private final int    pid;
 
   public CommandExecutionException(int exitCode, String commandLine, int pid) {
-    super(composeErrorMessage(exitCode, commandLine, pid));
+    super(composeErrorMessage(exitCode, commandLine, pid), null);
     this.exitCode = exitCode;
     this.pid = pid;
     this.commandLine = commandLine;

@@ -1,16 +1,17 @@
 package com.github.dakusui.cmd;
 
-import com.github.dakusui.cmd.exceptions.Exceptions;
-
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Stream;
 
 import static java.util.Arrays.asList;
 import static java.util.stream.Collectors.toList;
 
 public interface Shell {
+  String[] composeCommandLine();
+
   static Shell local() {
     return new Builder.ForLocal().build();
   }
@@ -22,6 +23,7 @@ public interface Shell {
   static Shell ssh(String user, String host, String identity) {
     return new Builder.ForSsh(host).userName(user).identity(identity).build();
   }
+
 
   class Impl implements Shell {
     private final String       program;
@@ -48,15 +50,13 @@ public interface Shell {
     }
   }
 
-  String[] composeCommandLine();
-
   abstract class Builder<B extends Builder> {
     private String program;
     private List<String> options = new LinkedList<>();
 
     @SuppressWarnings("unchecked")
     public B withProgram(String program) {
-      this.program = Exceptions.Arguments.requireNonNull(program);
+      this.program = Objects.requireNonNull(program);
       return (B) this;
     }
 
@@ -88,7 +88,7 @@ public interface Shell {
     }
 
     public Shell build() {
-      Exceptions.Arguments.requireNonNull(this.program);
+      Objects.requireNonNull(this.program);
       return new Impl(getProgram(), this.getOptions());
     }
 
@@ -111,7 +111,7 @@ public interface Shell {
       private String identity = null;
 
       public ForSsh(String hostName) {
-        this.hostName = Exceptions.Arguments.requireNonNull(hostName);
+        this.hostName = Objects.requireNonNull(hostName);
         this.withProgram("ssh")
             .addOption("-o", "PasswordAuthentication=no")
             .addOption("-o", "StrictHostkeyChecking=no");

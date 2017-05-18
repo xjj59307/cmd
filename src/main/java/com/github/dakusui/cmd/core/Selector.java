@@ -1,5 +1,7 @@
 package com.github.dakusui.cmd.core;
 
+import com.github.dakusui.cmd.exceptions.Exceptions;
+
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
@@ -10,7 +12,7 @@ import java.util.stream.StreamSupport;
 import static java.util.stream.Collectors.toList;
 
 public class Selector<T> {
-  public static final Object SENTINEL  = new Object() {
+  private static final Object SENTINEL  = new Object() {
     @Override
     public String toString() {
       return "SENTINEL";
@@ -27,7 +29,7 @@ public class Selector<T> {
   private final ExecutorService                  executorService;
   private final BlockingQueue<Object>            queue;
 
-  public Selector(Map<Stream<T>, Consumer<Object>> streams, BlockingQueue<Object> queue, ExecutorService executorService) {
+  Selector(Map<Stream<T>, Consumer<Object>> streams, BlockingQueue<Object> queue, ExecutorService executorService) {
     this.streams = new LinkedHashMap<Stream<T>, Consumer<Object>>() {{
       putAll(streams);
     }};
@@ -56,7 +58,7 @@ public class Selector<T> {
             try {
               return queue.take();
             } catch (InterruptedException e) {
-              throw new RuntimeException(e);
+              throw Exceptions.wrap(e);
             }
           }
 
@@ -76,8 +78,8 @@ public class Selector<T> {
     );
   }
 
-  private static <T> List<Future<?>> drain(Map<Stream<T>, Consumer<Object>> streams, ExecutorService executorService) {
-    return streams.entrySet().stream()
+  private static <T> void drain(Map<Stream<T>, Consumer<Object>> streams, ExecutorService executorService) {
+    streams.entrySet().stream()
         .map(
             (Function<Map.Entry<Stream<T>, Consumer<Object>>, Runnable>)
                 (Map.Entry<Stream<T>, Consumer<Object>> entry) -> () -> appendSentinel(entry.getKey()).forEach(entry.getValue()))
@@ -136,7 +138,7 @@ public class Selector<T> {
           }
         }
       };
-      return new Selector<T>(
+      return new Selector<>(
           new LinkedHashMap<Stream<T>, Consumer<Object>>() {{
             Builder.this.streams.forEach(
                 (stream, consumer) -> put(
