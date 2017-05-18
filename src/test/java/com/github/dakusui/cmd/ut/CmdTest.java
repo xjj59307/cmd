@@ -42,8 +42,8 @@ public class CmdTest extends TestUtils.StdOutTestBase {
     };
   }
 
-  @Test
-  public void given$when$then() {
+  @Test(expected = CommandExecutionException.class)
+  public void givenCommandExitWith1$whenRunLocally$thenCommandExecutionExceptionThrown() {
     Cmd.run(Shell.local(), "echo hello && exit 1").forEach(System.out::println);
   }
 
@@ -112,7 +112,7 @@ public class CmdTest extends TestUtils.StdOutTestBase {
           .add(String.format("cat /dev/zero | head -c 100000 | %s 80", base64()))
           .configure(createIo(Stream.of("Hello", "world")))
           .build();
-      System.out.println("commandLine=" + cmd.getCommandLine());
+      System.out.println("commandLine=" + cmd.getShell());
       cmd.run()
           .forEach(System.out::println);
     } catch (CommandExecutionException e) {

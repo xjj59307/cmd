@@ -72,7 +72,7 @@ public enum CommandUtils {
         .build();
 
     final Callable<CommandResult> callable = () -> {
-      String commandLine = String.join(" ", cmd.getCommandLine());
+      String commandLine = String.join(" ", cmd.getShell());
       try {
         cmd.run().forEach(s -> {
         });

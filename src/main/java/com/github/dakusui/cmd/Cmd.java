@@ -18,11 +18,12 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import static java.util.Arrays.asList;
+import static java.util.stream.Collectors.toList;
 
 public interface Cmd {
   Stream<String> run();
 
-  List<String> getCommandLine();
+  List<String> getShell();
 
   static Stream<String> run(Shell shell, String... commandLine) {
     return run(shell, Io.DEFAULT, commandLine);
@@ -33,7 +34,6 @@ public interface Cmd {
       Arrays.stream(commandLine).forEach(this::add);
     }}.withShell(shell).configure(io).build().run();
   }
-
 
   class Builder {
     Shell shell;
@@ -59,13 +59,10 @@ public interface Cmd {
 
     public Cmd build() {
       return new Impl(
-          composeCommandLine(),
+          this.shell.composeCommandLine(),
+          String.join(" ", this.command),
           charset,
           config);
-    }
-
-    private String[] composeCommandLine() {
-      return this.shell.buildCommandLine(String.join(" ", this.command));
     }
   }
 
@@ -78,12 +75,14 @@ public interface Cmd {
     };
     private static final Object            SENTINEL = new Object();
 
-    private final String[] commandLine;
+    private final String[] shell;
     private final Charset  charset;
     private final Io       io;
+    private final String   command;
 
-    Impl(String[] commandLine, Charset charset, Io io) {
-      this.commandLine = commandLine;
+    Impl(String[] shell, String command, Charset charset, Io io) {
+      this.shell = shell;
+      this.command = command;
       this.charset = charset;
       this.io = io;
     }
@@ -124,7 +123,11 @@ public interface Cmd {
                     try {
                       int exitValue = waitFor(process);
                       if (!(this.io.exitValue().test(exitValue))) {
-                        throw new CommandExecutionException(exitValue, this.getCommandLine().toArray(new String[0]), process.getPid());
+                        throw new CommandExecutionException(
+                            exitValue,
+                            this.toString(),
+                            process.getPid()
+                        );
                       }
                       ////
                       // A sentinel shouldn't be passed to following stages.
@@ -150,8 +153,13 @@ public interface Cmd {
     }
 
     @Override
-    public List<String> getCommandLine() {
-      return asList(commandLine);
+    public List<String> getShell() {
+      return asList(shell);
+    }
+
+    @Override
+    public String toString() {
+      return String.format("%s '%s'", String.join(" ", this.shell), this.command);
     }
 
     private int waitFor(Process process) {
@@ -164,13 +172,18 @@ public interface Cmd {
 
     private StreamableProcess startProcess() {
       return new StreamableProcess(
-          createProcess(this.commandLine),
+          createProcess(this.shell, this.command),
           charset);
     }
 
-    private Process createProcess(String[] commandLine) {
+    private static Process createProcess(String[] shell, String command) {
       try {
-        return Runtime.getRuntime().exec(commandLine);
+        return Runtime.getRuntime().exec(
+            Stream.concat(
+                Arrays.stream(shell),
+                Stream.of(command)
+            ).collect(toList()).toArray(new String[shell.length + 1])
+        );
       } catch (IOException e) {
         throw Exceptions.wrap(e);
       }
@@ -233,7 +246,7 @@ public interface Cmd {
     }
 
     class Impl extends Base {
-      public Impl(Stream<String> stdin) {
+      Impl(Stream<String> stdin) {
         super(stdin);
       }
 

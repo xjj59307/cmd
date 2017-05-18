@@ -16,7 +16,7 @@ public interface Shell {
   }
 
   static Shell ssh(String user, String host) {
-    return new Builder.ForSsh(host).userName(user).build();
+    return ssh(user, host, null);
   }
 
   static Shell ssh(String user, String host, String identity) {
@@ -40,18 +40,15 @@ public interface Shell {
       return options;
     }
 
-    public String[] buildCommandLine(String command) {
+    public String[] composeCommandLine() {
       return Stream.concat(
-          Stream.concat(
-              Stream.of(program()),
-              options().stream()
-          ),
-          Stream.of(command)
+          Stream.of(program()),
+          options().stream()
       ).collect(toList()).toArray(new String[0]);
     }
   }
 
-  String[] buildCommandLine(String command);
+  String[] composeCommandLine();
 
   abstract class Builder<B extends Builder> {
     private String program;
