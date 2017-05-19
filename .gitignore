@@ -3,4 +3,4 @@
 /.djunitplugin
 /.settings
 /.idea
-/commandrunner.iml
+/*.iml
