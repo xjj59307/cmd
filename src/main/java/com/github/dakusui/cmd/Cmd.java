@@ -7,10 +7,7 @@ import com.github.dakusui.cmd.exceptions.Exceptions;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
-import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
@@ -27,7 +24,7 @@ public interface Cmd {
   List<String> getShell();
 
   static Stream<String> run(Shell shell, String... commandLine) {
-    return run(shell, Io.DEFAULT, commandLine);
+    return run(shell, new Cmd.Io.Builder(Stream.empty()).build(), commandLine);
   }
 
   static Stream<String> run(Shell shell, Io io, String... commandLine) {
@@ -44,7 +41,7 @@ public interface Cmd {
     Shell shell;
     List<String> command = new LinkedList<>();
     Charset      charset = Charset.defaultCharset();
-    Io           config  = Io.DEFAULT;
+    Io           config  = Io.builder().build();
 
 
     public Builder add(String arg) {
@@ -125,26 +122,22 @@ public interface Cmd {
               try {
                 try {
                   try {
-                    try {
-                      int exitValue = waitFor(process);
-                      if (!(this.io.exitValueChecker().test(exitValue))) {
-                        throw new CommandExecutionException(
-                            exitValue,
-                            this.toString(),
-                            process.getPid()
-                        );
-                      }
-                      ////
-                      // A sentinel shouldn't be passed to following stages.
-                      return false;
-                    } finally {
-                      process.stdout().close();
+                    int exitValue = waitFor(process);
+                    if (!(this.io.exitValueChecker().test(exitValue))) {
+                      throw new CommandExecutionException(
+                          exitValue,
+                          this.toString(),
+                          process.getPid()
+                      );
                     }
+                    ////
+                    // A sentinel shouldn't be passed to following stages.
+                    return false;
                   } finally {
-                    process.stderr().close();
+                    process.stdout().close();
                   }
                 } finally {
-                  process.stdin().accept(null);
+                  process.stderr().close();
                 }
               } finally {
                 excutorService.shutdown();
@@ -196,8 +189,6 @@ public interface Cmd {
   }
 
   interface Io {
-    Io DEFAULT = new Builder(Stream.empty()).build();
-
     Stream<String> stdin();
 
     Consumer<String> stdoutConsumer();
@@ -210,21 +201,21 @@ public interface Cmd {
 
     IntPredicate exitValueChecker();
 
+    static Io.Builder builder() {
+      return new Cmd.Io.Builder(Stream.empty());
+    }
+
     class Builder {
       private static final Consumer<String> NOP = s -> {
       };
 
-      private final Stream<String> stdin;
+      private Stream<String> stdin;
       private Consumer<String> stdoutConsumer   = NOP;
       private Consumer<String> stderrConsumer   = NOP;
       private boolean          redirectsStdout  = true;
       private boolean          redirectsStderr  = false;
       private IntPredicate     exitValueChecker = value -> value == 0;
 
-
-      public Builder() {
-        this(Stream.empty());
-      }
 
       public Builder(Stream<String> stdin) {
         this.stdin = Objects.requireNonNull(stdin);

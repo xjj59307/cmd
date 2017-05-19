@@ -341,8 +341,8 @@ public class CommandRunnerTest {
       //String privKey  = String.format("%s/.ssh/id_rsa", CommandUtils.runLocal("echo $HOME").stdout());
       String privKey = TestUtils.identity();
 
-      CommandResult result = CommandUtils.runRemote(userName, hostName, privKey, "echo hello");
-      TestCase.assertEquals("hello", result.stdout());
+      CommandResult result = CommandUtils.runRemote(userName, hostName, privKey, "echo hello1");
+      TestCase.assertEquals("hello1", result.stdout());
       TestCase.assertEquals("", result.stderr());
       TestCase.assertEquals(0, result.exitCode());
       finished = true;

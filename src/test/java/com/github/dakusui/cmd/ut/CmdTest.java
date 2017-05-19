@@ -24,9 +24,18 @@ public class CmdTest extends TestUtils.StdOutTestBase {
   public void simplyEchoHello() {
     Cmd.run(Shell.local(), "echo hello").forEach(System.out::println);
   }
+
   @Test(expected = CommandExecutionException.class)
   public void givenCommandExitWith1$whenRunLocally$thenCommandExecutionExceptionThrown() {
     Cmd.run(Shell.local(), "echo hello && exit 1").forEach(System.out::println);
+  }
+
+  @Test(expected = CommandExecutionException.class)
+  public void givenCommandExitWith$whenRunItLocallyTwice$thenCommandExecutionExceptionThrown() {
+    String command = "echo hello && exit 1";
+    Stream<String> stdin = Stream.empty();
+//    Cmd.run(Shell.local(), new Cmd.Io.Builder(stdin).build(), command).forEach(System.out::println);
+    Cmd.run(Shell.local(), command).forEach(System.out::println);
   }
 
   @Test(expected = CommandExecutionException.class)
