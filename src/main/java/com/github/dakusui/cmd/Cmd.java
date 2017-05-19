@@ -41,7 +41,7 @@ public interface Cmd {
     Shell shell;
     List<String> command = new LinkedList<>();
     Charset      charset = Charset.defaultCharset();
-    Io           config  = Io.builder().build();
+    Io           config  = Io.create();
 
 
     public Builder add(String arg) {
@@ -200,6 +200,10 @@ public interface Cmd {
     boolean redirectsStderr();
 
     IntPredicate exitValueChecker();
+
+    static Io create() {
+      return builder().build();
+    }
 
     static Io.Builder builder() {
       return new Cmd.Io.Builder(Stream.empty());

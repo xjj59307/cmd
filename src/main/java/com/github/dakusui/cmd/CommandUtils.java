@@ -127,7 +127,9 @@ public enum CommandUtils {
       return run(
           timeout,
           new String[] {
-              "ssh", "-o", "StrictHostKeyChecking=no",
+              "ssh",
+              "-o", "StrictHostKeyChecking=no",
+              "-o", "PasswordAuthentication=no",
               String.format("%s@%s", userName, hostName)
           },
           command
@@ -139,6 +141,7 @@ public enum CommandUtils {
         new String[] {
             "ssh", "-i", privKeyFile,
             "-o", "StrictHostKeyChecking=no",
+            "-o", "PasswordAuthentication=no",
             String.format("%s@%s", userName, hostName)
         },
         command

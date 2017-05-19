@@ -34,7 +34,7 @@ public class CmdTest extends TestUtils.StdOutTestBase {
   public void givenCommandExitWith$whenRunItLocallyTwice$thenCommandExecutionExceptionThrown() {
     String command = "echo hello && exit 1";
     Stream<String> stdin = Stream.empty();
-//    Cmd.run(Shell.local(), new Cmd.Io.Builder(stdin).build(), command).forEach(System.out::println);
+    Cmd.run(Shell.local(), Cmd.Io.builder().build(), command).forEach(System.out::println);
     Cmd.run(Shell.local(), command).forEach(System.out::println);
   }
 
