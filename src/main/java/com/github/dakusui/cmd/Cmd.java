@@ -206,8 +206,13 @@ public interface Cmd {
     }
 
     static Io.Builder builder() {
-      return new Cmd.Io.Builder(Stream.empty());
+      return builder(Stream.empty());
     }
+
+    static Io.Builder builder(Stream<String> stdin) {
+      return new Cmd.Io.Builder(stdin);
+    }
+
 
     class Builder {
       private static final Consumer<String> NOP = s -> {

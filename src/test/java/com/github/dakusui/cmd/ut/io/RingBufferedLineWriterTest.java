@@ -5,7 +5,7 @@ import com.github.dakusui.cmd.utils.TestUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
-public class RingBufferedLineWriterTest extends TestUtils.StdOutTestBase {
+public class RingBufferedLineWriterTest extends TestUtils.TestBase {
   @Test
   public void write_hello_once() {
     RingBufferedLineWriter ringWriter = new RingBufferedLineWriter(3);

@@ -13,7 +13,7 @@ import java.nio.charset.Charset;
 
 import static org.junit.Assert.assertEquals;
 
-public class LineReaderTest extends TestUtils.StdOutTestBase {
+public class LineReaderTest extends TestUtils.TestBase {
 
   private BasicLineReader createLineReader(int bufferSize, String input) {
     return createLineReader(

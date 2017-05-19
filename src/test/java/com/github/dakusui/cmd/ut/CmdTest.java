@@ -10,7 +10,7 @@ import java.io.IOException;
 import java.util.Date;
 import java.util.stream.Stream;
 
-public class CmdTest extends TestUtils.StdOutTestBase {
+public class CmdTest extends TestUtils.TestBase {
   private Cmd.Io defaultIo = createIo(Stream.empty());
 
   private Cmd.Io createIo(Stream<String> stdin) {
