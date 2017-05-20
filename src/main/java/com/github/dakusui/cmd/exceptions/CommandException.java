@@ -16,7 +16,7 @@ public abstract class CommandException extends RuntimeException {
     super(msg, t);
   }
 
-  CommandException(Throwable throwable) {
+  protected CommandException(Throwable throwable) {
     super(throwable);
   }
 }

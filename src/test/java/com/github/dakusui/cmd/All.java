@@ -1,5 +1,6 @@
 package com.github.dakusui.cmd;
 
+import com.github.dakusui.cmd.scenario.ScenarioTest;
 import com.github.dakusui.cmd.ut.CmdTest;
 import com.github.dakusui.cmd.ut.CommandRunnerTest;
 import com.github.dakusui.cmd.ut.SelectorTest;
@@ -14,7 +15,8 @@ import org.junit.runners.Suite;
     RingBufferedLineWriterTest.class,
     CommandRunnerTest.class,
     CmdTest.class,
-    SelectorTest.class
+    SelectorTest.class,
+    ScenarioTest.class
 })
 public class All {
 }

@@ -9,12 +9,12 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class SelectorTest extends TestUtils.StdOutTestBase {
+public class SelectorTest extends TestUtils.TestBase {
   @Test(timeout = 5_000)
   public void main() {
     ExecutorService executorService = Executors.newFixedThreadPool(3);
     try {
-      new Selector.Builder<String>()
+      Selector<String> selector = new Selector.Builder<String>()
           .add(list("A", 10).stream())
           .add(list("B", 20).stream())
           .add(list("C", 30).stream().map(s -> {
@@ -26,7 +26,12 @@ public class SelectorTest extends TestUtils.StdOutTestBase {
           }), s -> System.err.println("not redirected:" + s))
           .setQueueSize(3)
           .withExecutorService(executorService)
-          .build().select().forEach(s -> System.err.println("taken:" + s));
+          .build();
+      try {
+        selector.select().forEach(s -> System.err.println("taken:" + s));
+      } finally {
+        selector.close();
+      }
     } finally {
       System.out.println("shutting down");
       executorService.shutdown();

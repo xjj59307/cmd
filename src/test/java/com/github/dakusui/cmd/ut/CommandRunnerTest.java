@@ -1,12 +1,13 @@
 package com.github.dakusui.cmd.ut;
 
-import com.github.dakusui.cmd.CommandResult;
-import com.github.dakusui.cmd.CommandUtils;
+import com.github.dakusui.cmd.compat.CommandResult;
+import com.github.dakusui.cmd.compat.CommandUtils;
 import com.github.dakusui.cmd.utils.TestUtils;
-import com.github.dakusui.cmd.exceptions.CommandTimeoutException;
+import com.github.dakusui.cmd.compat.exceptions.CommandTimeoutException;
 import junit.framework.TestCase;
 import org.hamcrest.CoreMatchers;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import static java.lang.String.format;
@@ -298,10 +299,29 @@ public class CommandRunnerTest {
     TestCase.assertEquals(0, result.exitCode());
   }
 
-  @Test(timeout = 6000)
+  @Test(timeout = 12000)
   public void runLocal_output10MdataToStdout() throws Exception {
     LOGGER.info("test-18");
     String cmd = format("cat /dev/zero | head -c 10000000 | %s 80", base64());
+
+    String expected = buildExpectedData(80, 54);
+    CommandResult result = CommandUtils.runLocal(cmd);
+    // AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    // 123456789012345678901234567890123456789012345678901234
+    TestCase.assertEquals(expected, result.stdout());
+    TestCase.assertEquals("", result.stderr());
+    TestCase.assertEquals(0, result.exitCode());
+  }
+
+
+  /**
+   * This test is marked 'ignored' since resource/time consuming.
+   */
+  @Ignore
+  @Test(timeout = 60000)
+  public void runLocal_output100MdataToStdout() throws Exception {
+    LOGGER.info("test-18");
+    String cmd = format("cat /dev/zero | head -c 100000000 | %s 80", base64());
 
     String expected = buildExpectedData(80, 54);
     CommandResult result = CommandUtils.runLocal(cmd);
@@ -341,8 +361,8 @@ public class CommandRunnerTest {
       //String privKey  = String.format("%s/.ssh/id_rsa", CommandUtils.runLocal("echo $HOME").stdout());
       String privKey = TestUtils.identity();
 
-      CommandResult result = CommandUtils.runRemote(userName, hostName, privKey, "echo hello");
-      TestCase.assertEquals("hello", result.stdout());
+      CommandResult result = CommandUtils.runRemote(userName, hostName, privKey, "echo hello1");
+      TestCase.assertEquals("hello1", result.stdout());
       TestCase.assertEquals("", result.stderr());
       TestCase.assertEquals(0, result.exitCode());
       finished = true;

@@ -1,9 +1,11 @@
-package com.github.dakusui.cmd;
+package com.github.dakusui.cmd.compat;
 
+import com.github.dakusui.cmd.Cmd;
+import com.github.dakusui.cmd.Shell;
+import com.github.dakusui.cmd.compat.exceptions.CommandTimeoutException;
 import com.github.dakusui.cmd.exceptions.CommandException;
-import com.github.dakusui.cmd.exceptions.CommandExecutionException;
-import com.github.dakusui.cmd.exceptions.CommandTimeoutException;
 import com.github.dakusui.cmd.exceptions.Exceptions;
+import com.github.dakusui.cmd.exceptions.UnexpectedExitValueException;
 import com.github.dakusui.cmd.io.RingBufferedLineWriter;
 
 import java.util.concurrent.*;
@@ -38,7 +40,8 @@ public enum CommandUtils {
         .withShell(shell)
         .add(command)
         .configure(
-            new Cmd.Io.Builder(Stream.empty())
+            //            new StreamableProcess.Config.Builder(Stream.empty())
+            Cmd.processConfigBuilder(Stream.empty())
                 .configureStdout(s -> {
                   stdout.write(s);
                   stdouterr.write(s);
@@ -79,10 +82,10 @@ public enum CommandUtils {
               stdouterr.asString()
           );
         }
-      } catch (CommandExecutionException e) {
+      } catch (UnexpectedExitValueException e) {
         return new CommandResult(
             commandLine,
-            e.exitCode(),
+            e.exitValue(),
             stdout.asString(),
             stderr.asString(),
             stdouterr.asString()
@@ -127,7 +130,9 @@ public enum CommandUtils {
       return run(
           timeout,
           new String[] {
-              "ssh", "-o", "StrictHostKeyChecking=no",
+              "ssh",
+              "-o", "StrictHostKeyChecking=no",
+              "-o", "PasswordAuthentication=no",
               String.format("%s@%s", userName, hostName)
           },
           command
@@ -139,6 +144,7 @@ public enum CommandUtils {
         new String[] {
             "ssh", "-i", privKeyFile,
             "-o", "StrictHostKeyChecking=no",
+            "-o", "PasswordAuthentication=no",
             String.format("%s@%s", userName, hostName)
         },
         command
