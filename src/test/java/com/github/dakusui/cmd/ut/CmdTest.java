@@ -2,6 +2,7 @@ package com.github.dakusui.cmd.ut;
 
 import com.github.dakusui.cmd.Cmd;
 import com.github.dakusui.cmd.Shell;
+import com.github.dakusui.cmd.core.StreamableProcess;
 import com.github.dakusui.cmd.exceptions.UnexpectedExitValueException;
 import com.github.dakusui.cmd.utils.TestUtils;
 import org.junit.Test;
@@ -11,10 +12,11 @@ import java.util.Date;
 import java.util.stream.Stream;
 
 public class CmdTest extends TestUtils.TestBase {
-  private Cmd.Io defaultIo = createIo(Stream.empty());
+  private StreamableProcess.Config defaultIo = createIo(Stream.empty());
 
-  private Cmd.Io createIo(Stream<String> stdin) {
-    return new Cmd.Io.Builder(stdin)
+  private StreamableProcess.Config createIo(Stream<String> stdin) {
+    return new StreamableProcess.Config.Builder(stdin)
+        .configureStdin(Stream.empty())
         .configureStdout(s -> System.out.println(new Date() + ":" + s))
         .configureStderr(s -> System.err.println(new Date() + ":" + s))
         .build();
@@ -33,8 +35,7 @@ public class CmdTest extends TestUtils.TestBase {
   @Test(expected = UnexpectedExitValueException.class)
   public void givenCommandExitWith$whenRunItLocallyTwice$thenCommandExecutionExceptionThrown() {
     String command = "echo hello && exit 1";
-    Stream<String> stdin = Stream.empty();
-    Cmd.run(Shell.local(), Cmd.Io.builder().build(), command).forEach(System.out::println);
+    Cmd.run(Shell.local(), Cmd.processConfigBuilder(Stream.empty()).build(), command).forEach(System.out::println);
     Cmd.run(Shell.local(), command).forEach(System.out::println);
   }
 

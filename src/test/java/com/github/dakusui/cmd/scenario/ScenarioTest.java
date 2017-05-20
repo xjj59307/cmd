@@ -2,6 +2,7 @@ package com.github.dakusui.cmd.scenario;
 
 import com.github.dakusui.cmd.Cmd;
 import com.github.dakusui.cmd.Shell;
+import com.github.dakusui.cmd.core.StreamableProcess;
 import com.github.dakusui.cmd.exceptions.CommandExecutionException;
 import com.github.dakusui.cmd.exceptions.UnexpectedExitValueException;
 import com.github.dakusui.cmd.utils.TestUtils;
@@ -140,7 +141,7 @@ public class ScenarioTest extends TestUtils.TestBase {
     List<String> stdout = new LinkedList<>();
     Cmd.run(
         shell,
-        Cmd.Io.builder(stdin.stream())
+        Cmd.processConfigBuilder(stdin.stream())
             .configureStdout(stdoutConsumer, s -> redirectsStdout)
             .configureStderr(stderrConsumer, s -> redirectsStderr)
             .build(),
@@ -221,7 +222,7 @@ public class ScenarioTest extends TestUtils.TestBase {
   ) {
     return new Cmd.Builder()
         .withShell(shell)
-        .configure(Cmd.Io.builder(stdin.stream())
+        .configure(StreamableProcess.Config.builder(stdin.stream())
             .configureStdout(stdoutConsumer, s -> redirectsStdout)
             .configureStderr(stderrConsumer, s -> redirectsStderr).build())
         .addAll(asList(command))

@@ -7,6 +7,7 @@ import com.github.dakusui.cmd.compat.exceptions.CommandTimeoutException;
 import junit.framework.TestCase;
 import org.hamcrest.CoreMatchers;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import static java.lang.String.format;
@@ -298,7 +299,7 @@ public class CommandRunnerTest {
     TestCase.assertEquals(0, result.exitCode());
   }
 
-  @Test(timeout = 6000)
+  @Test(timeout = 12000)
   public void runLocal_output10MdataToStdout() throws Exception {
     LOGGER.info("test-18");
     String cmd = format("cat /dev/zero | head -c 10000000 | %s 80", base64());
@@ -312,6 +313,11 @@ public class CommandRunnerTest {
     TestCase.assertEquals(0, result.exitCode());
   }
 
+
+  /**
+   * This test is marked 'ignored' since resource/time consuming.
+   */
+  @Ignore
   @Test(timeout = 60000)
   public void runLocal_output100MdataToStdout() throws Exception {
     LOGGER.info("test-18");

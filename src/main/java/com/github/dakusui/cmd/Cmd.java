@@ -5,16 +5,11 @@ import com.github.dakusui.cmd.exceptions.Exceptions;
 import com.github.dakusui.cmd.exceptions.UnexpectedExitValueException;
 
 import java.io.IOException;
-import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.function.Consumer;
-import java.util.function.IntPredicate;
-import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import static java.util.Arrays.asList;
@@ -32,24 +27,26 @@ public interface Cmd {
   List<String> getShell();
 
   static Stream<String> run(Shell shell, String... commandLine) {
-    return run(shell, new Cmd.Io.Builder(Stream.empty()).build(), commandLine);
+    return run(shell, processConfigBuilder(Stream.empty()).build(), commandLine);
   }
 
-  static Stream<String> run(Shell shell, Io io, String... commandLine) {
-    return new Cmd.Builder() {{
-      Arrays.stream(commandLine).forEach(this::add);
-    }}
+  static Stream<String> run(Shell shell, StreamableProcess.Config config, String... commandLine) {
+    return new Cmd.Builder()
+        .addAll(asList(commandLine))
         .withShell(shell)
-        .configure(io)
+        .configure(config)
         .build()
         .run();
   }
 
+  static StreamableProcess.Config.Builder processConfigBuilder(Stream<String> stdin) {
+    return new StreamableProcess.Config.Builder(stdin);
+  }
+
   class Builder {
     Shell shell;
-    List<String> command = new LinkedList<>();
-    Io           config  = Io.create();
-
+    List<String>             command = new LinkedList<>();
+    StreamableProcess.Config config  = StreamableProcess.Config.create();
 
     public Builder add(String arg) {
       this.command.add(arg);
@@ -61,7 +58,7 @@ public interface Cmd {
       return this;
     }
 
-    public Builder configure(Io config) {
+    public Builder configure(StreamableProcess.Config config) {
       this.config = config;
       return this;
     }
@@ -82,21 +79,21 @@ public interface Cmd {
   class Impl implements Cmd {
     static final Object SENTINEL = new Object();
 
-    private final String[]          shell;
-    private final Io                io;
-    private final String            command;
-    private       StreamableProcess process;
+    private final String[]                 shell;
+    private final String                   command;
+    private       StreamableProcess        process;
+    private final StreamableProcess.Config processConfig;
 
-    Impl(String[] shell, String command, Io io) {
+    Impl(String[] shell, String command, StreamableProcess.Config config) {
       this.shell = shell;
       this.command = command;
-      this.io = io;
+      this.processConfig = config;
     }
 
     @Override
     public synchronized Stream<String> run() {
       ExecutorService excutorService = Executors.newFixedThreadPool(3);
-      process = startProcess(excutorService);
+      process = startProcess(this.shell, this.command, this.processConfig, excutorService);
       return Stream.concat(
           process.getSelector().select(),
           Stream.of(SENTINEL)
@@ -107,7 +104,7 @@ public interface Cmd {
                 try {
                   try {
                     int exitValue = waitFor(process);
-                    if (!(this.io.exitValueChecker().test(exitValue))) {
+                    if (!(this.processConfig.exitValueChecker().test(exitValue))) {
                       throw new UnexpectedExitValueException(
                           exitValue,
                           this.toString(),
@@ -173,11 +170,11 @@ public interface Cmd {
       }
     }
 
-    private StreamableProcess startProcess(ExecutorService executorService) {
+    private static StreamableProcess startProcess(String[] shell, String command, StreamableProcess.Config processConfig, ExecutorService executorService) {
       return new StreamableProcess(
-          createProcess(this.shell, this.command),
+          createProcess(shell, command),
           executorService,
-          this.io
+          processConfig
       );
     }
 
@@ -195,129 +192,4 @@ public interface Cmd {
     }
   }
 
-  interface Io {
-    Stream<String> stdin();
-
-    Consumer<String> stdoutConsumer();
-
-    Predicate<String> stdoutFilter();
-
-    Consumer<String> stderrConsumer();
-
-    Predicate<String> stderrFilter();
-
-    IntPredicate exitValueChecker();
-
-    Charset charset();
-
-    static Io create() {
-      return builder().build();
-    }
-
-    static Io.Builder builder() {
-      return builder(Stream.empty());
-    }
-
-    static Io.Builder builder(Stream<String> stdin) {
-      return new Cmd.Io.Builder(stdin);
-    }
-
-    class Builder {
-      private static final Consumer<String> NOP      = s -> {
-      };
-
-      private Stream<String>    stdin;
-      private Consumer<String>  stdoutConsumer;
-      private Predicate<String> stdoutFilter;
-      private Consumer<String>  stderrConsumer;
-      private Predicate<String> stderrFilter;
-      private IntPredicate      exitValueChecker;
-      private Charset           charset;
-
-      public Builder(Stream<String> stdin) {
-        this.configureStdin(stdin);
-        this.charset(Charset.defaultCharset());
-        this.checkExitValueWith(value -> value == 0);
-        this.configureStdout(NOP);
-        this.configureStderr(NOP);
-      }
-
-      public Builder configureStdin(Stream<String> stdin) {
-        this.stdin = Objects.requireNonNull(stdin);
-        return this;
-      }
-
-      public Builder configureStdout(Consumer<String> consumer) {
-        return this.configureStdout(consumer, s -> true);
-      }
-
-      public Builder configureStdout(Consumer<String> consumer, Predicate<String> stdoutFilter) {
-        this.stdoutConsumer = Objects.requireNonNull(consumer);
-        this.stdoutFilter = Objects.requireNonNull(stdoutFilter);
-        return this;
-      }
-
-      public Builder configureStderr(Consumer<String> consumer) {
-        return this.configureStderr(consumer, s -> false);
-      }
-
-      public Builder configureStderr(Consumer<String> consumer, Predicate<String> stdoutFilter) {
-        this.stderrConsumer = Objects.requireNonNull(consumer);
-        this.stderrFilter = Objects.requireNonNull(stdoutFilter);
-        return this;
-      }
-
-      public Builder checkExitValueWith(IntPredicate exitValueChecker) {
-        this.exitValueChecker = Objects.requireNonNull(exitValueChecker);
-        return this;
-      }
-
-      public Builder charset(Charset charset) {
-        this.charset = Objects.requireNonNull(charset);
-        return this;
-      }
-
-      public Io build() {
-        return new Io() {
-          @Override
-          public Stream<String> stdin() {
-            return Stream.concat(
-                Builder.this.stdin,
-                Stream.of((String) null)
-            );
-          }
-
-          @Override
-          public Consumer<String> stdoutConsumer() {
-            return Builder.this.stdoutConsumer;
-          }
-
-          @Override
-          public Consumer<String> stderrConsumer() {
-            return Builder.this.stderrConsumer;
-          }
-
-          @Override
-          public Predicate<String> stdoutFilter() {
-            return Builder.this.stdoutFilter;
-          }
-
-          @Override
-          public Predicate<String> stderrFilter() {
-            return Builder.this.stderrFilter;
-          }
-
-          @Override
-          public IntPredicate exitValueChecker() {
-            return Builder.this.exitValueChecker;
-          }
-
-          @Override
-          public Charset charset() {
-            return Builder.this.charset;
-          }
-        };
-      }
-    }
-  }
 }

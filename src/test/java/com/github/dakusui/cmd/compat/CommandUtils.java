@@ -2,10 +2,10 @@ package com.github.dakusui.cmd.compat;
 
 import com.github.dakusui.cmd.Cmd;
 import com.github.dakusui.cmd.Shell;
-import com.github.dakusui.cmd.exceptions.CommandException;
-import com.github.dakusui.cmd.exceptions.UnexpectedExitValueException;
 import com.github.dakusui.cmd.compat.exceptions.CommandTimeoutException;
+import com.github.dakusui.cmd.exceptions.CommandException;
 import com.github.dakusui.cmd.exceptions.Exceptions;
+import com.github.dakusui.cmd.exceptions.UnexpectedExitValueException;
 import com.github.dakusui.cmd.io.RingBufferedLineWriter;
 
 import java.util.concurrent.*;
@@ -40,7 +40,8 @@ public enum CommandUtils {
         .withShell(shell)
         .add(command)
         .configure(
-            new Cmd.Io.Builder(Stream.empty())
+            //            new StreamableProcess.Config.Builder(Stream.empty())
+            Cmd.processConfigBuilder(Stream.empty())
                 .configureStdout(s -> {
                   stdout.write(s);
                   stdouterr.write(s);
