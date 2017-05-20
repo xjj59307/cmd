@@ -1,13 +1,15 @@
 package com.github.dakusui.cmd;
 
-import com.github.dakusui.cmd.core.Selector;
 import com.github.dakusui.cmd.core.StreamableProcess;
-import com.github.dakusui.cmd.exceptions.CommandExecutionException;
+import com.github.dakusui.cmd.exceptions.UnexpectedExitValueException;
 import com.github.dakusui.cmd.exceptions.Exceptions;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
-import java.util.*;
+import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
@@ -20,6 +22,12 @@ import static java.util.stream.Collectors.toList;
 
 public interface Cmd {
   Stream<String> run();
+
+  int exitValue();
+
+  void destroy();
+
+  int getPid();
 
   List<String> getShell();
 
@@ -66,6 +74,11 @@ public interface Cmd {
           charset,
           config);
     }
+
+    public Builder addAll(List<String> command) {
+      command.forEach(this::add);
+      return this;
+    }
   }
 
   class Impl implements Cmd {
@@ -77,10 +90,11 @@ public interface Cmd {
     };
     private static final Object            SENTINEL = new Object();
 
-    private final String[] shell;
-    private final Charset  charset;
-    private final Io       io;
-    private final String   command;
+    private final String[]          shell;
+    private final Charset           charset;
+    private final Io                io;
+    private final String            command;
+    private       StreamableProcess process;
 
     Impl(String[] shell, String command, Charset charset, Io io) {
       this.shell = shell;
@@ -90,10 +104,12 @@ public interface Cmd {
     }
 
     @Override
-    public Stream<String> run() {
-      StreamableProcess process = startProcess();
+    public synchronized Stream<String> run() {
       ExecutorService excutorService = Executors.newFixedThreadPool(3);
+      process = startProcess(excutorService);
       return Stream.concat(
+          process.getSelector()
+          /*
           new Selector.Builder<String>()
               .add(this.io.stdin(), process.stdin())
               .add(
@@ -113,7 +129,7 @@ public interface Cmd {
                       .filter(SUPPRESS.or(s -> io.redirectsStderr()))
               )
               .withExecutorService(excutorService)
-              .build()
+              .build()*/
               .select(),
           Stream.of(SENTINEL)
       ).filter(
@@ -124,7 +140,7 @@ public interface Cmd {
                   try {
                     int exitValue = waitFor(process);
                     if (!(this.io.exitValueChecker().test(exitValue))) {
-                      throw new CommandExecutionException(
+                      throw new UnexpectedExitValueException(
                           exitValue,
                           this.toString(),
                           process.getPid()
@@ -151,6 +167,27 @@ public interface Cmd {
     }
 
     @Override
+    public synchronized int exitValue() {
+      if (this.process == null)
+        throw new IllegalStateException();
+      return this.process.exitValue();
+    }
+
+    @Override
+    public synchronized void destroy() {
+      if (this.process == null)
+        throw new IllegalStateException();
+      this.process.destroy();
+    }
+
+    @Override
+    public synchronized int getPid() {
+      if (this.process == null)
+        throw new IllegalStateException();
+      return this.process.getPid();
+    }
+
+    @Override
     public List<String> getShell() {
       return asList(shell);
     }
@@ -168,10 +205,14 @@ public interface Cmd {
       }
     }
 
-    private StreamableProcess startProcess() {
+    private StreamableProcess startProcess(ExecutorService executorService) {
       return new StreamableProcess(
           createProcess(this.shell, this.command),
-          charset);
+          charset,
+          executorService,
+          this.io,
+          SUPPRESS
+      );
     }
 
     private static Process createProcess(String[] shell, String command) {

@@ -1,9 +1,11 @@
 package com.github.dakusui.cmd.core;
 
-import com.github.dakusui.cmd.exceptions.Exceptions;
+import com.github.dakusui.cmd.exceptions.CommandInterruptionException;
 
 import java.util.*;
-import java.util.concurrent.*;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -28,6 +30,7 @@ public class Selector<T> {
   private final Map<Stream<T>, Consumer<Object>> streams;
   private final ExecutorService                  executorService;
   private final BlockingQueue<Object>            queue;
+  private       boolean                          closed;
 
   Selector(Map<Stream<T>, Consumer<Object>> streams, BlockingQueue<Object> queue, ExecutorService executorService) {
     this.streams = new LinkedHashMap<Stream<T>, Consumer<Object>>() {{
@@ -35,8 +38,8 @@ public class Selector<T> {
     }};
     this.executorService = executorService;
     this.queue = queue;
+    this.closed = false;
   }
-
 
   public Stream<T> select() {
     drain(
@@ -55,11 +58,15 @@ public class Selector<T> {
           }
 
           private Object takeFrom(BlockingQueue<Object> queue) {
-            try {
-              return queue.take();
-            } catch (InterruptedException e) {
-              throw Exceptions.wrap(e);
+            synchronized (queue) {
+              while (!closed || !queue.isEmpty()) {
+                try {
+                  return queue.take();
+                } catch (InterruptedException ignored) {
+                }
+              }
             }
+            throw new CommandInterruptionException();
           }
 
           @SuppressWarnings("unchecked")
@@ -76,6 +83,13 @@ public class Selector<T> {
         }).spliterator(),
         false
     );
+  }
+
+  public void close() {
+    synchronized (queue) {
+      closed = true;
+      queue.notifyAll();
+    }
   }
 
   private static <T> void drain(Map<Stream<T>, Consumer<Object>> streams, ExecutorService executorService) {

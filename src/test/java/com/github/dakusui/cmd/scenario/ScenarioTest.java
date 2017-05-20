@@ -3,6 +3,7 @@ package com.github.dakusui.cmd.scenario;
 import com.github.dakusui.cmd.Cmd;
 import com.github.dakusui.cmd.Shell;
 import com.github.dakusui.cmd.exceptions.CommandExecutionException;
+import com.github.dakusui.cmd.exceptions.UnexpectedExitValueException;
 import com.github.dakusui.cmd.utils.TestUtils;
 import com.github.dakusui.jcunit8.factorspace.Parameter;
 import com.github.dakusui.jcunit8.runners.junit4.JCUnit8;
@@ -22,11 +23,14 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 @RunWith(JCUnit8.class)
 public class ScenarioTest extends TestUtils.TestBase {
@@ -118,7 +122,7 @@ public class ScenarioTest extends TestUtils.TestBase {
 
   @Test
   @Given("!exitsWithNonZero")
-  public void whenRunCommand(
+  public void whenRunCommand$thenExpectedDataWrittenToStdout(
       @From("shell") Shell shell,
       @From("command") String[] command,
       @From("stdin") List<String> stdin,
@@ -142,7 +146,50 @@ public class ScenarioTest extends TestUtils.TestBase {
     assertThat(stdout, stdoutMatcher(stdin, String.join(" ", command), redirectsStdout));
   }
 
-  @Test(expected = CommandExecutionException.class)
+  @Test(expected = CommandExecutionException.class, timeout = 5_000)
+  @Given("!exitsWithNonZero")
+  public void whenRunCommandGetPidAndDestroy$thenNotBlocked(
+      @From("shell") Shell shell,
+      @From("command") String[] command,
+      @From("stdin") List<String> stdin,
+      @From("stdoutConsumer") Consumer<String> stdoutConsumer,
+      @From("redirectsStdout") boolean redirectsStdout,
+      @From("stderrConsumer") Consumer<String> stderrConsumer,
+      @From("redirectsStderr") boolean redirectsStderr
+  ) {
+    Cmd cmd = buildCommand(shell, command, stdin, stdoutConsumer, redirectsStdout, stderrConsumer, redirectsStderr);
+    Stream<String> out = cmd.run();
+    int pid = cmd.getPid();
+    try {
+      System.out.println();
+      assertTrue("pid=" + pid, pid > 0);
+      try {
+        cmd.destroy();
+      } catch (UnexpectedExitValueException e) {
+        assertEquals(pid, e.pid());
+        int exitValue = cmd.exitValue();
+        assertTrue("exitValue(from a Cmd object)=" + exitValue, exitValue != 0);
+        assertTrue("exitValue(from thrown exception)=" + e.exitValue(), e.exitValue() != 0);
+        throw e;
+      }
+    } finally {
+      out.forEach(s -> {
+
+      });
+    }
+  }
+
+  private Cmd buildCommand(@From("shell") Shell shell, @From("command") String[] command, @From("stdin") List<String> stdin, @From("stdoutConsumer") Consumer<String> stdoutConsumer, @From("redirectsStdout") boolean redirectsStdout, @From("stderrConsumer") Consumer<String> stderrConsumer, @From("redirectsStderr") boolean redirectsStderr) {
+    return new Cmd.Builder()
+        .withShell(shell)
+        .configure(Cmd.Io.builder(stdin.stream())
+            .configureStdout(stdoutConsumer, redirectsStdout)
+            .configureStderr(stderrConsumer, redirectsStderr).build())
+        .addAll(asList(command))
+        .build();
+  }
+
+  @Test(expected = UnexpectedExitValueException.class)
   @Given("exitsWithNonZero")
   public void whenRunCommand$thenCommandExecutionExceptionThrown(
       @From("shell") Shell shell,
@@ -166,7 +213,7 @@ public class ScenarioTest extends TestUtils.TestBase {
           ((Consumer<String>) System.out::println)
               .andThen(stdout::add)
       );
-    } catch (CommandExecutionException e) {
+    } catch (UnexpectedExitValueException e) {
       assertThat(stdout, stdoutMatcher(stdin, String.join(" ", command), redirectsStdout));
       throw e;
     }

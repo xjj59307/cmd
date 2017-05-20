@@ -1,7 +1,6 @@
 package com.github.dakusui.cmd.utils;
 
 import com.github.dakusui.cmd.Cmd;
-import com.github.dakusui.cmd.CommandUtils;
 import com.github.dakusui.cmd.Shell;
 import org.junit.After;
 import org.junit.Before;
@@ -58,7 +57,7 @@ public enum TestUtils {
   public static String identity() {
     String key = "commandstreamer.identity";
     if (!System.getProperties().containsKey(key))
-      return String.format("%s/.ssh/id_rsa", CommandUtils.runLocal("echo $HOME").stdout());
+      return String.format("%s/.ssh/id_rsa", Cmd.run(Shell.local(), "echo $HOME").collect(Collectors.joining()));
     return System.getProperty(key);
   }
 

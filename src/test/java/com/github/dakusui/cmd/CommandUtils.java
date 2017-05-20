@@ -1,7 +1,7 @@
 package com.github.dakusui.cmd;
 
 import com.github.dakusui.cmd.exceptions.CommandException;
-import com.github.dakusui.cmd.exceptions.CommandExecutionException;
+import com.github.dakusui.cmd.exceptions.UnexpectedExitValueException;
 import com.github.dakusui.cmd.exceptions.CommandTimeoutException;
 import com.github.dakusui.cmd.exceptions.Exceptions;
 import com.github.dakusui.cmd.io.RingBufferedLineWriter;
@@ -79,10 +79,10 @@ public enum CommandUtils {
               stdouterr.asString()
           );
         }
-      } catch (CommandExecutionException e) {
+      } catch (UnexpectedExitValueException e) {
         return new CommandResult(
             commandLine,
-            e.exitCode(),
+            e.exitValue(),
             stdout.asString(),
             stderr.asString(),
             stdouterr.asString()

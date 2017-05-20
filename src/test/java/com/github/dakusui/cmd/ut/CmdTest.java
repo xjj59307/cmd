@@ -2,7 +2,7 @@ package com.github.dakusui.cmd.ut;
 
 import com.github.dakusui.cmd.Cmd;
 import com.github.dakusui.cmd.Shell;
-import com.github.dakusui.cmd.exceptions.CommandExecutionException;
+import com.github.dakusui.cmd.exceptions.UnexpectedExitValueException;
 import com.github.dakusui.cmd.utils.TestUtils;
 import org.junit.Test;
 
@@ -25,12 +25,12 @@ public class CmdTest extends TestUtils.TestBase {
     Cmd.run(Shell.local(), "echo hello").forEach(System.out::println);
   }
 
-  @Test(expected = CommandExecutionException.class)
+  @Test(expected = UnexpectedExitValueException.class)
   public void givenCommandExitWith1$whenRunLocally$thenCommandExecutionExceptionThrown() {
     Cmd.run(Shell.local(), "echo hello && exit 1").forEach(System.out::println);
   }
 
-  @Test(expected = CommandExecutionException.class)
+  @Test(expected = UnexpectedExitValueException.class)
   public void givenCommandExitWith$whenRunItLocallyTwice$thenCommandExecutionExceptionThrown() {
     String command = "echo hello && exit 1";
     Stream<String> stdin = Stream.empty();
@@ -38,7 +38,7 @@ public class CmdTest extends TestUtils.TestBase {
     Cmd.run(Shell.local(), command).forEach(System.out::println);
   }
 
-  @Test(expected = CommandExecutionException.class)
+  @Test(expected = UnexpectedExitValueException.class)
   public void main2() throws IOException {
     try {
       new Cmd.Builder()
@@ -48,8 +48,8 @@ public class CmdTest extends TestUtils.TestBase {
           .build()
           .run()
           .forEach(System.out::println);
-    } catch (CommandExecutionException e) {
-      System.err.println(e.exitCode());
+    } catch (UnexpectedExitValueException e) {
+      System.err.println(e.exitValue());
       System.err.println(String.join(":", e.commandLine()));
       throw e;
     }
@@ -71,8 +71,8 @@ public class CmdTest extends TestUtils.TestBase {
           .build()
           .run()
           .forEach(System.out::println);
-    } catch (CommandExecutionException e) {
-      System.err.println("exitcode:" + e.exitCode());
+    } catch (UnexpectedExitValueException e) {
+      System.err.println("exitcode:" + e.exitValue());
       System.err.println("commandline:" + String.join(" ", e.commandLine()));
       throw e;
     }
@@ -88,8 +88,8 @@ public class CmdTest extends TestUtils.TestBase {
           .build()
           .run()
           .forEach(System.out::println);
-    } catch (CommandExecutionException e) {
-      System.err.println(e.exitCode());
+    } catch (UnexpectedExitValueException e) {
+      System.err.println(e.exitValue());
       System.err.println(String.join(":", e.commandLine()));
       throw e;
     }
@@ -106,8 +106,8 @@ public class CmdTest extends TestUtils.TestBase {
       System.out.println("commandLine=" + cmd.getShell());
       cmd.run()
           .forEach(System.out::println);
-    } catch (CommandExecutionException e) {
-      System.err.println(e.exitCode());
+    } catch (UnexpectedExitValueException e) {
+      System.err.println(e.exitValue());
       System.err.println(String.join(":", e.commandLine()));
       throw e;
     }
