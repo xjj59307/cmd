@@ -312,6 +312,20 @@ public class CommandRunnerTest {
     TestCase.assertEquals(0, result.exitCode());
   }
 
+  @Test(timeout = 60000)
+  public void runLocal_output100MdataToStdout() throws Exception {
+    LOGGER.info("test-18");
+    String cmd = format("cat /dev/zero | head -c 100000000 | %s 80", base64());
+
+    String expected = buildExpectedData(80, 54);
+    CommandResult result = CommandUtils.runLocal(cmd);
+    // AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    // 123456789012345678901234567890123456789012345678901234
+    TestCase.assertEquals(expected, result.stdout());
+    TestCase.assertEquals("", result.stderr());
+    TestCase.assertEquals(0, result.exitCode());
+  }
+
   private String buildExpectedData(@SuppressWarnings("SameParameterValue") int numCharsPerOneLine, @SuppressWarnings("SameParameterValue") int numCharsInLastLine) {
     StringBuilder b = new StringBuilder();
     for (int i = 1; i < 100; i++) {

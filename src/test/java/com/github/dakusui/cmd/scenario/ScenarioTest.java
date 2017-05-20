@@ -109,7 +109,6 @@ public class ScenarioTest extends TestUtils.TestBase {
   }
 
 
-
   @Test
   public void print(
       @From("shell") Shell shell,
@@ -142,8 +141,8 @@ public class ScenarioTest extends TestUtils.TestBase {
     Cmd.run(
         shell,
         Cmd.Io.builder(stdin.stream())
-            .configureStdout(stdoutConsumer, redirectsStdout)
-            .configureStderr(stderrConsumer, redirectsStderr)
+            .configureStdout(stdoutConsumer, s -> redirectsStdout)
+            .configureStderr(stderrConsumer, s -> redirectsStderr)
             .build(),
         command
     ).forEach(
@@ -223,8 +222,8 @@ public class ScenarioTest extends TestUtils.TestBase {
     return new Cmd.Builder()
         .withShell(shell)
         .configure(Cmd.Io.builder(stdin.stream())
-            .configureStdout(stdoutConsumer, redirectsStdout)
-            .configureStderr(stderrConsumer, redirectsStderr).build())
+            .configureStdout(stdoutConsumer, s -> redirectsStdout)
+            .configureStderr(stderrConsumer, s -> redirectsStderr).build())
         .addAll(asList(command))
         .build();
   }

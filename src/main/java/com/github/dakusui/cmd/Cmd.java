@@ -1,8 +1,8 @@
 package com.github.dakusui.cmd;
 
 import com.github.dakusui.cmd.core.StreamableProcess;
-import com.github.dakusui.cmd.exceptions.UnexpectedExitValueException;
 import com.github.dakusui.cmd.exceptions.Exceptions;
+import com.github.dakusui.cmd.exceptions.UnexpectedExitValueException;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -80,13 +80,7 @@ public interface Cmd {
   }
 
   class Impl implements Cmd {
-    private static final Predicate<Object> SUPPRESS = new Predicate<Object>() {
-      @Override
-      public boolean test(Object o) {
-        return o == SENTINEL;
-      }
-    };
-    private static final Object            SENTINEL = new Object();
+    static final Object SENTINEL = new Object();
 
     private final String[]          shell;
     private final Io                io;
@@ -183,8 +177,7 @@ public interface Cmd {
       return new StreamableProcess(
           createProcess(this.shell, this.command),
           executorService,
-          this.io,
-          SUPPRESS
+          this.io
       );
     }
 
@@ -207,11 +200,11 @@ public interface Cmd {
 
     Consumer<String> stdoutConsumer();
 
+    Predicate<String> stdoutFilter();
+
     Consumer<String> stderrConsumer();
 
-    boolean redirectsStdout();
-
-    boolean redirectsStderr();
+    Predicate<String> stderrFilter();
 
     IntPredicate exitValueChecker();
 
@@ -230,23 +223,23 @@ public interface Cmd {
     }
 
     class Builder {
-      private static final Consumer<String> NOP = s -> {
+      private static final Consumer<String> NOP      = s -> {
       };
 
-      private Stream<String>   stdin;
-      private Consumer<String> stdoutConsumer;
-      private Consumer<String> stderrConsumer;
-      private boolean          redirectsStdout;
-      private boolean          redirectsStderr;
-      private IntPredicate     exitValueChecker;
-      private Charset          charset;
+      private Stream<String>    stdin;
+      private Consumer<String>  stdoutConsumer;
+      private Predicate<String> stdoutFilter;
+      private Consumer<String>  stderrConsumer;
+      private Predicate<String> stderrFilter;
+      private IntPredicate      exitValueChecker;
+      private Charset           charset;
 
       public Builder(Stream<String> stdin) {
         this.configureStdin(stdin);
         this.charset(Charset.defaultCharset());
         this.checkExitValueWith(value -> value == 0);
-        this.configureStdout(NOP, true);
-        this.configureStderr(NOP, false);
+        this.configureStdout(NOP);
+        this.configureStderr(NOP);
       }
 
       public Builder configureStdin(Stream<String> stdin) {
@@ -255,22 +248,22 @@ public interface Cmd {
       }
 
       public Builder configureStdout(Consumer<String> consumer) {
-        return this.configureStdout(consumer, this.redirectsStdout);
+        return this.configureStdout(consumer, s -> true);
       }
 
-      public Builder configureStdout(Consumer<String> consumer, boolean redirect) {
+      public Builder configureStdout(Consumer<String> consumer, Predicate<String> stdoutFilter) {
         this.stdoutConsumer = Objects.requireNonNull(consumer);
-        this.redirectsStdout = redirect;
+        this.stdoutFilter = Objects.requireNonNull(stdoutFilter);
         return this;
       }
 
       public Builder configureStderr(Consumer<String> consumer) {
-        return this.configureStderr(consumer, this.redirectsStderr);
+        return this.configureStderr(consumer, s -> false);
       }
 
-      public Builder configureStderr(Consumer<String> consumer, boolean redirect) {
+      public Builder configureStderr(Consumer<String> consumer, Predicate<String> stdoutFilter) {
         this.stderrConsumer = Objects.requireNonNull(consumer);
-        this.redirectsStderr = redirect;
+        this.stderrFilter = Objects.requireNonNull(stdoutFilter);
         return this;
       }
 
@@ -305,13 +298,13 @@ public interface Cmd {
           }
 
           @Override
-          public boolean redirectsStdout() {
-            return Builder.this.redirectsStdout;
+          public Predicate<String> stdoutFilter() {
+            return Builder.this.stdoutFilter;
           }
 
           @Override
-          public boolean redirectsStderr() {
-            return Builder.this.redirectsStderr;
+          public Predicate<String> stderrFilter() {
+            return Builder.this.stderrFilter;
           }
 
           @Override

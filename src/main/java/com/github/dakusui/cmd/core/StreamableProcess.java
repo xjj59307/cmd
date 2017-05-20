@@ -7,7 +7,6 @@ import java.io.OutputStream;
 import java.lang.reflect.Field;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
-import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import static java.util.Arrays.asList;
@@ -20,12 +19,12 @@ public class StreamableProcess extends Process {
   private final Selector<String> selector;
 
 
-  public StreamableProcess(Process process, ExecutorService executorService, Cmd.Io io, Predicate<Object> filter) {
+  public StreamableProcess(Process process, ExecutorService executorService, Cmd.Io io) {
     this.process = process;
     this.stdout = IoUtils.toStream(getInputStream(), io.charset());
     this.stderr = IoUtils.toStream(getErrorStream(), io.charset());
     this.stdin = IoUtils.toConsumer(this.getOutputStream(), io.charset());
-    this.selector = createSelector(filter, io, executorService);
+    this.selector = createSelector(io, executorService);
   }
 
   @Override
@@ -90,7 +89,7 @@ public class StreamableProcess extends Process {
     return getPid(this.process);
   }
 
-  private Selector<String> createSelector(Predicate<Object> filter, Cmd.Io io, ExecutorService excutorService) {
+  private Selector<String> createSelector(Cmd.Io io, ExecutorService excutorService) {
     return new Selector.Builder<String>()
         .add(io.stdin(), this.stdin())
         .add(
@@ -99,7 +98,7 @@ public class StreamableProcess extends Process {
                   io.stdoutConsumer().accept(s);
                   return s;
                 })
-                .filter(filter.or(s -> io.redirectsStdout()))
+                .filter(io.stdoutFilter())
         )
         .add(
             this.stderr()
@@ -107,7 +106,7 @@ public class StreamableProcess extends Process {
                   io.stderrConsumer().accept(s);
                   return s;
                 })
-                .filter(filter.or(s -> io.redirectsStderr()))
+                .filter(io.stderrFilter())
         )
         .withExecutorService(excutorService)
         .build();
