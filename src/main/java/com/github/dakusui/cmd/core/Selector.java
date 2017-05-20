@@ -133,7 +133,6 @@ public class Selector<T> {
     }
 
     public Selector<T> build() {
-
       Consumer<Object> defaultConsumer = new Consumer<Object>() {
         int numConsumedSentinels = 0;
         final int numStreamsForThisConsumer = (int) streams.values().stream().filter(Objects::isNull).count();

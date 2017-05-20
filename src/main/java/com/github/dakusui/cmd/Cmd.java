@@ -48,7 +48,6 @@ public interface Cmd {
   class Builder {
     Shell shell;
     List<String> command = new LinkedList<>();
-    Charset      charset = Charset.defaultCharset();
     Io           config  = Io.create();
 
 
@@ -71,7 +70,6 @@ public interface Cmd {
       return new Impl(
           this.shell.composeCommandLine(),
           String.join(" ", this.command),
-          charset,
           config);
     }
 
@@ -91,15 +89,13 @@ public interface Cmd {
     private static final Object            SENTINEL = new Object();
 
     private final String[]          shell;
-    private final Charset           charset;
     private final Io                io;
     private final String            command;
     private       StreamableProcess process;
 
-    Impl(String[] shell, String command, Charset charset, Io io) {
+    Impl(String[] shell, String command, Io io) {
       this.shell = shell;
       this.command = command;
-      this.charset = charset;
       this.io = io;
     }
 
@@ -108,29 +104,7 @@ public interface Cmd {
       ExecutorService excutorService = Executors.newFixedThreadPool(3);
       process = startProcess(excutorService);
       return Stream.concat(
-          process.getSelector()
-          /*
-          new Selector.Builder<String>()
-              .add(this.io.stdin(), process.stdin())
-              .add(
-                  process.stdout()
-                      .map(s -> {
-                        this.io.stdoutConsumer().accept(s);
-                        return s;
-                      })
-                      .filter(SUPPRESS.or(s -> io.redirectsStdout()))
-              )
-              .add(
-                  process.stderr()
-                      .map(s -> {
-                        this.io.stderrConsumer().accept(s);
-                        return s;
-                      })
-                      .filter(SUPPRESS.or(s -> io.redirectsStderr()))
-              )
-              .withExecutorService(excutorService)
-              .build()*/
-              .select(),
+          process.getSelector().select(),
           Stream.of(SENTINEL)
       ).filter(
           o -> {
@@ -208,7 +182,6 @@ public interface Cmd {
     private StreamableProcess startProcess(ExecutorService executorService) {
       return new StreamableProcess(
           createProcess(this.shell, this.command),
-          charset,
           executorService,
           this.io,
           SUPPRESS
@@ -242,6 +215,8 @@ public interface Cmd {
 
     IntPredicate exitValueChecker();
 
+    Charset charset();
+
     static Io create() {
       return builder().build();
     }
@@ -254,21 +229,29 @@ public interface Cmd {
       return new Cmd.Io.Builder(stdin);
     }
 
-
     class Builder {
       private static final Consumer<String> NOP = s -> {
       };
 
-      private Stream<String> stdin;
-      private Consumer<String> stdoutConsumer   = NOP;
-      private Consumer<String> stderrConsumer   = NOP;
-      private boolean          redirectsStdout  = true;
-      private boolean          redirectsStderr  = false;
-      private IntPredicate     exitValueChecker = value -> value == 0;
-
+      private Stream<String>   stdin;
+      private Consumer<String> stdoutConsumer;
+      private Consumer<String> stderrConsumer;
+      private boolean          redirectsStdout;
+      private boolean          redirectsStderr;
+      private IntPredicate     exitValueChecker;
+      private Charset          charset;
 
       public Builder(Stream<String> stdin) {
+        this.configureStdin(stdin);
+        this.charset(Charset.defaultCharset());
+        this.checkExitValueWith(value -> value == 0);
+        this.configureStdout(NOP, true);
+        this.configureStderr(NOP, false);
+      }
+
+      public Builder configureStdin(Stream<String> stdin) {
         this.stdin = Objects.requireNonNull(stdin);
+        return this;
       }
 
       public Builder configureStdout(Consumer<String> consumer) {
@@ -292,7 +275,12 @@ public interface Cmd {
       }
 
       public Builder checkExitValueWith(IntPredicate exitValueChecker) {
-        this.exitValueChecker = exitValueChecker;
+        this.exitValueChecker = Objects.requireNonNull(exitValueChecker);
+        return this;
+      }
+
+      public Builder charset(Charset charset) {
+        this.charset = Objects.requireNonNull(charset);
         return this;
       }
 
@@ -329,6 +317,11 @@ public interface Cmd {
           @Override
           public IntPredicate exitValueChecker() {
             return Builder.this.exitValueChecker;
+          }
+
+          @Override
+          public Charset charset() {
+            return Builder.this.charset;
           }
         };
       }

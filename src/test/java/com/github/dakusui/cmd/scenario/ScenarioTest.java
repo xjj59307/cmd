@@ -22,13 +22,11 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
-import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
@@ -103,6 +101,15 @@ public class ScenarioTest extends TestUtils.TestBase {
     ));
   }
 
+  @Condition
+  public boolean commandShouldExitWithZero(
+      @From("command") String[] command
+  ) {
+    return Arrays.stream(command).noneMatch(s -> s.contains("exit 1"));
+  }
+
+
+
   @Test
   public void print(
       @From("shell") Shell shell,
@@ -121,7 +128,7 @@ public class ScenarioTest extends TestUtils.TestBase {
   }
 
   @Test
-  @Given("!exitsWithNonZero")
+  @Given("commandShouldExitWithZero")
   public void whenRunCommand$thenExpectedDataWrittenToStdout(
       @From("shell") Shell shell,
       @From("command") String[] command,
@@ -147,7 +154,7 @@ public class ScenarioTest extends TestUtils.TestBase {
   }
 
   @Test(expected = CommandExecutionException.class, timeout = 5_000)
-  @Given("!exitsWithNonZero")
+  @Given("commandShouldExitWithZero")
   public void whenRunCommandGetPidAndDestroy$thenNotBlocked(
       @From("shell") Shell shell,
       @From("command") String[] command,
@@ -161,36 +168,17 @@ public class ScenarioTest extends TestUtils.TestBase {
     Stream<String> out = cmd.run();
     int pid = cmd.getPid();
     try {
-      System.out.println();
+      System.out.println("pid=" + pid);
       assertTrue("pid=" + pid, pid > 0);
-      try {
-        cmd.destroy();
-      } catch (UnexpectedExitValueException e) {
-        assertEquals(pid, e.pid());
-        int exitValue = cmd.exitValue();
-        assertTrue("exitValue(from a Cmd object)=" + exitValue, exitValue != 0);
-        assertTrue("exitValue(from thrown exception)=" + e.exitValue(), e.exitValue() != 0);
-        throw e;
-      }
+      cmd.destroy();
     } finally {
       out.forEach(s -> {
-
       });
     }
   }
 
-  private Cmd buildCommand(@From("shell") Shell shell, @From("command") String[] command, @From("stdin") List<String> stdin, @From("stdoutConsumer") Consumer<String> stdoutConsumer, @From("redirectsStdout") boolean redirectsStdout, @From("stderrConsumer") Consumer<String> stderrConsumer, @From("redirectsStderr") boolean redirectsStderr) {
-    return new Cmd.Builder()
-        .withShell(shell)
-        .configure(Cmd.Io.builder(stdin.stream())
-            .configureStdout(stdoutConsumer, redirectsStdout)
-            .configureStderr(stderrConsumer, redirectsStderr).build())
-        .addAll(asList(command))
-        .build();
-  }
-
   @Test(expected = UnexpectedExitValueException.class)
-  @Given("exitsWithNonZero")
+  @Given("!commandShouldExitWithZero")
   public void whenRunCommand$thenCommandExecutionExceptionThrown(
       @From("shell") Shell shell,
       @From("command") String[] command,
@@ -201,43 +189,44 @@ public class ScenarioTest extends TestUtils.TestBase {
       @From("redirectsStderr") boolean redirectsStderr
   ) {
     List<String> stdout = new LinkedList<>();
+    Cmd cmd = buildCommand(
+        shell,
+        command,
+        stdin,
+        stdoutConsumer,
+        redirectsStdout,
+        stderrConsumer,
+        redirectsStderr
+    );
     try {
-      Cmd.run(
-          shell,
-          Cmd.Io.builder(stdin.stream())
-              .configureStdout(stdoutConsumer, redirectsStdout)
-              .configureStderr(stderrConsumer, redirectsStderr)
-              .build(),
-          command
-      ).forEach(
+      cmd.run().forEach(
           ((Consumer<String>) System.out::println)
               .andThen(stdout::add)
       );
     } catch (UnexpectedExitValueException e) {
       assertThat(stdout, stdoutMatcher(stdin, String.join(" ", command), redirectsStdout));
+      assertTrue(e.exitValue() != 0);
+      assertTrue(e.exitValue() == cmd.exitValue());
       throw e;
     }
   }
 
-  @Condition
-  public boolean exitsWithNonZero(
-      @From("command") String[] command
+  private Cmd buildCommand(
+      Shell shell,
+      String[] command,
+      List<String> stdin,
+      Consumer<String> stdoutConsumer,
+      boolean redirectsStdout,
+      Consumer<String> stderrConsumer,
+      boolean redirectsStderr
   ) {
-    return Arrays.stream(command).anyMatch(s -> s.contains("exit 1"));
-  }
-
-  private Predicate<List<String>> stdoutChecker(List<String> stdin, String command, boolean redirectsStdout) {
-    return stdout -> {
-      if (redirectsStdout) {
-        if (Objects.equals(command, "cat")) {
-          return stdin.equals(stdout);
-        }
-        if (command.contains("cat -n"))
-          return "     1\tHello".equals(String.join("", stdout));
-        return "Hello".equals(String.join("", stdout));
-      }
-      return emptyList().equals(stdout);
-    };
+    return new Cmd.Builder()
+        .withShell(shell)
+        .configure(Cmd.Io.builder(stdin.stream())
+            .configureStdout(stdoutConsumer, redirectsStdout)
+            .configureStderr(stderrConsumer, redirectsStderr).build())
+        .addAll(asList(command))
+        .build();
   }
 
   private Matcher<List<String>> stdoutMatcher(List<String> stdin, String command, boolean redirectsStdout) {

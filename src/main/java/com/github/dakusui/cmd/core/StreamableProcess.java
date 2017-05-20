@@ -5,7 +5,6 @@ import com.github.dakusui.cmd.Cmd;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Field;
-import java.nio.charset.Charset;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -15,19 +14,17 @@ import static java.util.Arrays.asList;
 
 public class StreamableProcess extends Process {
   private final Process          process;
-  private final Charset          charset;
   private final Stream<String>   stdout;
   private final Stream<String>   stderr;
   private final Consumer<String> stdin;
   private final Selector<String> selector;
 
 
-  public StreamableProcess(Process process, Charset charset, ExecutorService executorService, Cmd.Io io, Predicate<Object> filter) {
+  public StreamableProcess(Process process, ExecutorService executorService, Cmd.Io io, Predicate<Object> filter) {
     this.process = process;
-    this.charset = charset;
-    this.stdout = IoUtils.toStream(getInputStream(), this.charset);
-    this.stderr = IoUtils.toStream(getErrorStream(), this.charset);
-    this.stdin = IoUtils.toConsumer(this.getOutputStream(), this.charset);
+    this.stdout = IoUtils.toStream(getInputStream(), io.charset());
+    this.stderr = IoUtils.toStream(getErrorStream(), io.charset());
+    this.stdin = IoUtils.toConsumer(this.getOutputStream(), io.charset());
     this.selector = createSelector(filter, io, executorService);
   }
 
@@ -63,7 +60,6 @@ public class StreamableProcess extends Process {
       eachStream.close();
     }
     this.selector.close();
-    System.out.println("selector closed");
   }
 
   /**
