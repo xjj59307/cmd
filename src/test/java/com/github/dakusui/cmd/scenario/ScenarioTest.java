@@ -3,7 +3,6 @@ package com.github.dakusui.cmd.scenario;
 import com.github.dakusui.cmd.Cmd;
 import com.github.dakusui.cmd.Shell;
 import com.github.dakusui.cmd.core.StreamableProcess;
-import com.github.dakusui.cmd.exceptions.CommandExecutionException;
 import com.github.dakusui.cmd.exceptions.UnexpectedExitValueException;
 import com.github.dakusui.cmd.utils.TestUtils;
 import com.github.dakusui.jcunit8.factorspace.Parameter;
@@ -28,6 +27,7 @@ import java.util.stream.Stream;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
+import static java.util.stream.Collectors.toList;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
@@ -163,7 +163,7 @@ public class ScenarioTest extends TestUtils.TestBase {
     assertThat(stdout, stdoutMatcher(stdin, String.join(" ", command), redirectsStdout));
   }
 
-  @Test(expected = CommandExecutionException.class, timeout = 5_000)
+  @Test(timeout = 5_000)
   @Given("commandShouldExitWithZero")
   public void whenRunCommandGetPidAndDestroy$thenNotBlocked(
       @From("shell") Shell shell,
@@ -174,16 +174,26 @@ public class ScenarioTest extends TestUtils.TestBase {
       @From("stderrConsumer") Consumer<String> stderrConsumer,
       @From("redirectsStderr") boolean redirectsStderr
   ) {
-    Cmd cmd = buildCommand(shell, command, stdin, stdoutConsumer, redirectsStdout, stderrConsumer, redirectsStderr);
-    Stream<String> out = cmd.stream();
-    int pid = cmd.getPid();
+    Cmd cmd = buildCommand(
+        shell,
+        Stream.concat(
+            Stream.of("sleep 0.2", "&&"),
+            Arrays.stream(command)
+        ).collect(toList()).toArray(new String[0]),
+        stdin,
+        stdoutConsumer,
+        redirectsStdout,
+        stderrConsumer,
+        redirectsStderr
+    );
+    Stream<String> stream = cmd.stream();
     try {
+      int pid = cmd.getPid();
       System.out.println("pid=" + pid);
       assertTrue("pid=" + pid, pid > 0);
-      cmd.destroy();
     } finally {
-      out.forEach(s -> {
-      });
+      stream.forEach(System.out::println);
+      cmd.destroy();
     }
   }
 

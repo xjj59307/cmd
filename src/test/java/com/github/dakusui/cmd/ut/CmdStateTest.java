@@ -2,12 +2,13 @@ package com.github.dakusui.cmd.ut;
 
 import com.github.dakusui.cmd.Cmd;
 import com.github.dakusui.cmd.Shell;
+import com.github.dakusui.cmd.utils.TestUtils;
 import org.hamcrest.CoreMatchers;
 import org.junit.Test;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 
-public class CmdStateTest {
+public class CmdStateTest extends TestUtils.TestBase {
   @Test(expected = IllegalStateException.class)
   public void givenCmdNotStarted$whenExitValue$thenIllegalStateWillBeThrown() {
     Cmd cmd = Cmd.cmd(Shell.local(), "echo hello");
