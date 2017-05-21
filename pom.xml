@@ -3,7 +3,7 @@
 
     <groupId>com.github.dakusui</groupId>
     <artifactId>cmdstreamer</artifactId>
-    <version>0.2.0</version>
+    <version>0.2.1-SNAPSHOT</version>
     <description>Command line streamer library for Java 8</description>
     <packaging>jar</packaging>
 
@@ -25,7 +25,7 @@
             scm:git:git@github.com:dakusui/cmdstreamer.git
         </developerConnection>
         <url>http://github.com/dakusui/cmdstreamer</url>
-        <tag>cmdstreamer-0.2.0</tag>
+        <tag>HEAD</tag>
     </scm>
 
     <developers>
