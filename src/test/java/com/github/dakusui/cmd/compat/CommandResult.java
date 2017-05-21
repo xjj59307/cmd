@@ -1,4 +1,4 @@
-package com.github.dakusui.cmd;
+package com.github.dakusui.cmd.compat;
 
 
 public class CommandResult {

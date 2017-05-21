@@ -1,14 +1,16 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.github.dakusui</groupId>
-    <artifactId>commandrunner</artifactId>
-    <version>0.0.9-SNAPSHOT</version>
-    <description>Command line runner library for Java</description>
+    <artifactId>cmdstreamer</artifactId>
+    <version>0.2.0-SNAPSHOT</version>
+    <description>Command line streamer library for Java 8</description>
     <packaging>jar</packaging>
 
-    <name>commandrunner</name>
-    <url>https://github.com/dakusui/commandrunner</url>
+    <name>cmdstreamer</name>
+    <url>https://github.com/dakusui/cmdstreamer</url>
 
     <licenses>
         <license>
@@ -19,11 +21,14 @@
     </licenses>
 
     <scm>
-        <connection>scm:git:git://github.com/dakusui/commandrunner.git</connection>
-        <developerConnection>scm:git:git@github.com:dakusui/commandrunner.git</developerConnection>
-        <url>http://github.com/dakusui/commandrunner</url>
-      <tag>HEAD</tag>
-  </scm>
+        <connection>scm:git:git://github.com/dakusui/cmdstreamer.git
+        </connection>
+        <developerConnection>
+            scm:git:git@github.com:dakusui/cmdstreamer.git
+        </developerConnection>
+        <url>http://github.com/dakusui/cmdstreamer</url>
+        <tag>HEAD</tag>
+    </scm>
 
     <developers>
         <developer>
@@ -39,44 +44,16 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-lang3</artifactId>
-            <version>3.1</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>4.12</version>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.reflections</groupId>
-            <artifactId>reflections</artifactId>
-            <version>0.9.8</version>
+            <groupId>com.github.dakusui</groupId>
+            <artifactId>jcunit</artifactId>
+            <version>0.8.1</version>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-            <version>1.7.2</version>
-        </dependency>
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>jcl-over-slf4j</artifactId>
-            <scope>runtime</scope>
-            <version>1.7.2</version>
-        </dependency>
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-log4j12</artifactId>
-            <scope>runtime</scope>
-            <version>1.7.2</version>
-        </dependency>
-        <dependency>
-            <groupId>log4j</groupId>
-            <artifactId>log4j</artifactId>
-            <version>1.2.17</version>
         </dependency>
     </dependencies>
 
@@ -87,8 +64,8 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.5.1</version>
                 <configuration>
-                    <source>1.6</source>
-                    <target>1.6</target>
+                    <source>1.8</source>
+                    <target>1.8</target>
                     <showDeprecation>true</showDeprecation>
                     <showWarnings>true</showWarnings>
                     <!-- executable>/usr/bin/javac</executable -->
@@ -104,7 +81,20 @@
                     <arguments>-Dgpg.passphrase=${gpg.passphrase}</arguments>
                 </configuration>
             </plugin>
-
+            <plugin>
+                <!-- Run with mvn org.pitest:pitest-maven:mutationCoverage -->
+                <groupId>org.pitest</groupId>
+                <artifactId>pitest-maven</artifactId>
+                <version>1.2.0</version>
+                <configuration>
+                    <targetClasses>
+                        <param>com.github.dakusui.cmd.*</param>
+                    </targetClasses>
+                    <targetTests>
+                        <param>*Test</param>
+                    </targetTests>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 
@@ -117,7 +107,8 @@
         <repository>
             <id>sonatype-nexus-staging</id>
             <name>Sonatype Nexus release repository</name>
-            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/
+            </url>
         </repository>
     </distributionManagement>
 

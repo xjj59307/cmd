@@ -1,35 +1,26 @@
 package com.github.dakusui.cmd;
 
-import java.net.MalformedURLException;
-import java.util.Set;
-
-import org.junit.BeforeClass;
+import com.github.dakusui.cmd.scenario.PipelineTest;
+import com.github.dakusui.cmd.scenario.ScenarioTest;
+import com.github.dakusui.cmd.ut.CmdStateTest;
+import com.github.dakusui.cmd.ut.CmdTest;
+import com.github.dakusui.cmd.ut.CommandRunnerTest;
+import com.github.dakusui.cmd.ut.SelectorTest;
+import com.github.dakusui.cmd.ut.io.LineReaderTest;
+import com.github.dakusui.cmd.ut.io.RingBufferedLineWriterTest;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
-import org.reflections.Reflections;
-import org.reflections.scanners.SubTypesScanner;
-import org.reflections.util.ClasspathHelper;
-import org.reflections.util.ConfigurationBuilder;
-
-import com.github.dakusui.cmd.io.LineReaderTest;
-import com.github.dakusui.cmd.io.RingBufferedLineWriterTest;
 
 @RunWith(Suite.class)
 @Suite.SuiteClasses({
-	LineReaderTest.class,
-	RingBufferedLineWriterTest.class,
-	CommandRunnerTest.class
-})public class All {
-	@BeforeClass public static void loadAllClassesUnderTests() throws MalformedURLException {
-		Reflections reflections = new Reflections(
-				new ConfigurationBuilder()
-				.setUrls(ClasspathHelper.forPackage("com.github.dakusui"))
-				.setScanners(new SubTypesScanner(false))
-		);
-		Set<?> modules = reflections.getSubTypesOf(Object.class);
-		System.out.printf("Loaded %d classes:\n", modules.size());
-		for (Object klass : modules) {
-			System.out.println("    " + klass);
-		}
-	}
+    LineReaderTest.class,
+    RingBufferedLineWriterTest.class,
+    CommandRunnerTest.class,
+    CmdTest.class,
+    CmdStateTest.class,
+    SelectorTest.class,
+    ScenarioTest.class,
+    PipelineTest.class
+})
+public class All {
 }
