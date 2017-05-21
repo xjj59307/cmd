@@ -36,8 +36,18 @@ public class ScenarioTest extends TestUtils.TestBase {
 
   private static final Consumer<String> NOP    = s -> {
   };
-  private static final Consumer<String> STDOUT = System.out::println;
-  private static final Consumer<String> STDERR = System.err::println;
+  /**
+   * If you make this a method reference, you cannot suppress output to stdout
+   * even if you are using TestUtils.TestBase.
+   */
+  @SuppressWarnings("Convert2MethodRef")
+  private static final Consumer<String> STDOUT = x -> System.out.println(x);
+  /**
+   * If you make this a method reference, you cannot suppress output to stderr
+   * even if you are using TestUtils.TestBase.
+   */
+  @SuppressWarnings("Convert2MethodRef")
+  private static final Consumer<String> STDERR = x -> System.err.println(x);
 
   @ParameterSource
   public Parameter.Factory<Shell> shell() {
@@ -120,7 +130,7 @@ public class ScenarioTest extends TestUtils.TestBase {
       @From("stderrConsumer") Consumer<String> stderrConsumer,
       @From("redirectsStderr") boolean redirectsStderr
   ) {
-    System.out.printf("shell='%s'%n", String.join(" ", shell.composeCommandLine()));
+    System.out.printf("shell='%s'%n", String.join(" ", shell.format()));
     System.out.printf("command='%s'%n", String.join(" ", command));
     System.out.printf("stdin='%s'%n", stdin);
     System.out.printf("stdoutConsumer='%s'(%s)%n", stdoutConsumer, redirectsStdout);
@@ -139,9 +149,9 @@ public class ScenarioTest extends TestUtils.TestBase {
       @From("redirectsStderr") boolean redirectsStderr
   ) {
     List<String> stdout = new LinkedList<>();
-    Cmd.run(
+    Cmd.stream(
         shell,
-        Cmd.processConfigBuilder(stdin.stream())
+        StreamableProcess.Config.builder(stdin.stream())
             .configureStdout(stdoutConsumer, s -> redirectsStdout)
             .configureStderr(stderrConsumer, s -> redirectsStderr)
             .build(),
@@ -165,7 +175,7 @@ public class ScenarioTest extends TestUtils.TestBase {
       @From("redirectsStderr") boolean redirectsStderr
   ) {
     Cmd cmd = buildCommand(shell, command, stdin, stdoutConsumer, redirectsStdout, stderrConsumer, redirectsStderr);
-    Stream<String> out = cmd.run();
+    Stream<String> out = cmd.stream();
     int pid = cmd.getPid();
     try {
       System.out.println("pid=" + pid);
@@ -199,7 +209,7 @@ public class ScenarioTest extends TestUtils.TestBase {
         redirectsStderr
     );
     try {
-      cmd.run().forEach(
+      cmd.stream().forEach(
           ((Consumer<String>) System.out::println)
               .andThen(stdout::add)
       );

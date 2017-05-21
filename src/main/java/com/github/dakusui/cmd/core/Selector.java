@@ -1,6 +1,7 @@
 package com.github.dakusui.cmd.core;
 
 import com.github.dakusui.cmd.exceptions.CommandInterruptionException;
+import com.github.dakusui.cmd.exceptions.Exceptions;
 
 import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -53,11 +54,11 @@ public class Selector<T> {
           @Override
           public boolean hasNext() {
             if (next == READ_NEXT)
-              next = takeFrom(queue);
+              next = takeFromQueue();
             return next != SENTINEL;
           }
 
-          private Object takeFrom(BlockingQueue<Object> queue) {
+          private Object takeFromQueue() {
             synchronized (queue) {
               while (!closed || !queue.isEmpty()) {
                 try {
@@ -92,30 +93,14 @@ public class Selector<T> {
     }
   }
 
-  private static <T> void drain(Map<Stream<T>, Consumer<Object>> streams, ExecutorService executorService) {
-    streams.entrySet().stream()
-        .map(
-            (Function<Map.Entry<Stream<T>, Consumer<Object>>, Runnable>)
-                (Map.Entry<Stream<T>, Consumer<Object>> entry) -> () -> appendSentinel(entry.getKey()).forEach(entry.getValue()))
-        .map(executorService::submit)
-        .collect(toList());
-  }
-
-  private static <T> Stream<Object> appendSentinel(Stream<T> stream) {
-    return Stream.concat(stream, Stream.of(SENTINEL));
-  }
-
   public static class Builder<T> {
-    private final Map<Stream<T>, Consumer<T>> streams         = new LinkedHashMap<>();
-    private       ExecutorService             executorService = null;
-    private       BlockingQueue<Object>       queue           = new ArrayBlockingQueue<>(100);
+    private final Map<Stream<T>, Consumer<T>> streams;
+    private final BlockingQueue<Object>       queue;
+    private ExecutorService executorService = null;
 
-    public Builder() {
-    }
-
-    public Builder<T> setQueueSize(int sizeOfQueue) {
-      this.queue = new ArrayBlockingQueue<>(sizeOfQueue);
-      return this;
+    public Builder(int queueSize) {
+      this.streams = new LinkedHashMap<>();
+      this.queue = new ArrayBlockingQueue<>(100);
     }
 
     public Builder<T> add(Stream<T> stream) {
@@ -147,7 +132,7 @@ public class Selector<T> {
           try {
             Builder.this.queue.put(t);
           } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+            throw Exceptions.wrap(e);
           }
         }
       };
@@ -170,5 +155,18 @@ public class Selector<T> {
           Objects.requireNonNull(this.executorService)
       );
     }
+  }
+
+  private static <T> void drain(Map<Stream<T>, Consumer<Object>> streams, ExecutorService executorService) {
+    streams.entrySet().stream()
+        .map(
+            (Function<Map.Entry<Stream<T>, Consumer<Object>>, Runnable>)
+                (Map.Entry<Stream<T>, Consumer<Object>> entry) -> () -> appendSentinel(entry.getKey()).forEach(entry.getValue()))
+        .map(executorService::submit)
+        .collect(toList());
+  }
+
+  private static <T> Stream<Object> appendSentinel(Stream<T> stream) {
+    return Stream.concat(stream, Stream.of(SENTINEL));
   }
 }

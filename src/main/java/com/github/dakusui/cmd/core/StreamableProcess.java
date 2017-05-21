@@ -22,7 +22,6 @@ public class StreamableProcess extends Process {
   private final Consumer<String> stdin;
   private final Selector<String> selector;
 
-
   public StreamableProcess(Process process, ExecutorService executorService, Config config) {
     this.process = process;
     this.stdout = IoUtils.toStream(getInputStream(), config.charset());
@@ -94,7 +93,7 @@ public class StreamableProcess extends Process {
   }
 
   private Selector<String> createSelector(Config config, ExecutorService excutorService) {
-    return new Selector.Builder<String>()
+    return new Selector.Builder<String>(100)
         .add(config.stdin(), this.stdin())
         .add(
             this.stdout()
@@ -228,7 +227,7 @@ public class StreamableProcess extends Process {
     class Impl implements Config {
       private Builder builder;
 
-      public Impl(Builder builder) {
+      Impl(Builder builder) {
         this.builder = builder;
       }
 
