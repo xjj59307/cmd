@@ -120,7 +120,7 @@ public class ScenarioTest extends TestUtils.TestBase {
       @From("stderrConsumer") Consumer<String> stderrConsumer,
       @From("redirectsStderr") boolean redirectsStderr
   ) {
-    System.out.printf("shell='%s'%n", String.join(" ", shell.composeCommandLine()));
+    System.out.printf("shell='%s'%n", String.join(" ", shell.format()));
     System.out.printf("command='%s'%n", String.join(" ", command));
     System.out.printf("stdin='%s'%n", stdin);
     System.out.printf("stdoutConsumer='%s'(%s)%n", stdoutConsumer, redirectsStdout);
@@ -141,7 +141,7 @@ public class ScenarioTest extends TestUtils.TestBase {
     List<String> stdout = new LinkedList<>();
     Cmd.run(
         shell,
-        Cmd.processConfigBuilder(stdin.stream())
+        StreamableProcess.Config.builder(stdin.stream())
             .configureStdout(stdoutConsumer, s -> redirectsStdout)
             .configureStderr(stderrConsumer, s -> redirectsStderr)
             .build(),

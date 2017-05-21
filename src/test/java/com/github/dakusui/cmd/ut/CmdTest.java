@@ -35,7 +35,7 @@ public class CmdTest extends TestUtils.TestBase {
   @Test(expected = UnexpectedExitValueException.class)
   public void givenCommandExitWith$whenRunItLocallyTwice$thenCommandExecutionExceptionThrown() {
     String command = "echo hello && exit 1";
-    Cmd.run(Shell.local(), Cmd.processConfigBuilder(Stream.empty()).build(), command).forEach(System.out::println);
+    Cmd.run(Shell.local(), StreamableProcess.Config.builder(Stream.empty()).build(), command).forEach(System.out::println);
     Cmd.run(Shell.local(), command).forEach(System.out::println);
   }
 
@@ -104,7 +104,7 @@ public class CmdTest extends TestUtils.TestBase {
           .add(String.format("cat /dev/zero | head -c 100000 | %s 80", base64()))
           .configure(createIo(Stream.of("Hello", "world")))
           .build();
-      System.out.println("commandLine=" + cmd.getShell());
+      System.out.println("commandLine=" + cmd);
       cmd.run()
           .forEach(System.out::println);
     } catch (UnexpectedExitValueException e) {

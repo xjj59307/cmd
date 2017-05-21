@@ -22,7 +22,6 @@ public class StreamableProcess extends Process {
   private final Consumer<String> stdin;
   private final Selector<String> selector;
 
-
   public StreamableProcess(Process process, ExecutorService executorService, Config config) {
     this.process = process;
     this.stdout = IoUtils.toStream(getInputStream(), config.charset());

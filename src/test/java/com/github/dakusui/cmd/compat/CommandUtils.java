@@ -3,6 +3,7 @@ package com.github.dakusui.cmd.compat;
 import com.github.dakusui.cmd.Cmd;
 import com.github.dakusui.cmd.Shell;
 import com.github.dakusui.cmd.compat.exceptions.CommandTimeoutException;
+import com.github.dakusui.cmd.core.StreamableProcess;
 import com.github.dakusui.cmd.exceptions.CommandException;
 import com.github.dakusui.cmd.exceptions.Exceptions;
 import com.github.dakusui.cmd.exceptions.UnexpectedExitValueException;
@@ -41,7 +42,7 @@ public enum CommandUtils {
         .add(command)
         .configure(
             //            new StreamableProcess.Config.Builder(Stream.empty())
-            Cmd.processConfigBuilder(Stream.empty())
+            StreamableProcess.Config.builder(Stream.empty())
                 .configureStdout(s -> {
                   stdout.write(s);
                   stdouterr.write(s);
@@ -62,7 +63,7 @@ public enum CommandUtils {
         .build();
 
     final Callable<CommandResult> callable = () -> {
-      String commandLine = String.join(" ", cmd.getShell());
+      String commandLine = shell.format();
       try {
         cmd.run().forEach(s -> {
         });

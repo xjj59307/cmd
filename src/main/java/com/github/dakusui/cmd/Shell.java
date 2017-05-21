@@ -10,7 +10,18 @@ import static java.util.Arrays.asList;
 import static java.util.stream.Collectors.toList;
 
 public interface Shell {
-  String[] composeCommandLine();
+  String program();
+
+  List<String> options();
+
+  default String format() {
+    return String.join(
+        " ",
+        Stream.concat(
+            Stream.of(program()),
+            options().stream()
+        ).collect(toList()));
+  }
 
   static Shell local() {
     return new Builder.ForLocal().build();
@@ -24,7 +35,6 @@ public interface Shell {
     return new Builder.ForSsh(host).userName(user).identity(identity).build();
   }
 
-
   class Impl implements Shell {
     private final String       program;
     private final List<String> options;
@@ -34,19 +44,12 @@ public interface Shell {
       this.options = options;
     }
 
-    String program() {
+    public String program() {
       return program;
     }
 
-    List<String> options() {
+    public List<String> options() {
       return options;
-    }
-
-    public String[] composeCommandLine() {
-      return Stream.concat(
-          Stream.of(program()),
-          options().stream()
-      ).collect(toList()).toArray(new String[0]);
     }
   }
 
