@@ -24,19 +24,19 @@ public class CmdTest extends TestUtils.TestBase {
 
   @Test(timeout = 10_000)
   public void simplyEchoHello() {
-    Cmd.run(Shell.local(), "echo hello").forEach(System.out::println);
+    Cmd.stream(Shell.local(), "echo hello").forEach(System.out::println);
   }
 
   @Test(expected = UnexpectedExitValueException.class)
   public void givenCommandExitWith1$whenRunLocally$thenCommandExecutionExceptionThrown() {
-    Cmd.run(Shell.local(), "echo hello && exit 1").forEach(System.out::println);
+    Cmd.stream(Shell.local(), "echo hello && exit 1").forEach(System.out::println);
   }
 
   @Test(expected = UnexpectedExitValueException.class)
   public void givenCommandExitWith$whenRunItLocallyTwice$thenCommandExecutionExceptionThrown() {
     String command = "echo hello && exit 1";
-    Cmd.run(Shell.local(), StreamableProcess.Config.builder(Stream.empty()).build(), command).forEach(System.out::println);
-    Cmd.run(Shell.local(), command).forEach(System.out::println);
+    Cmd.stream(Shell.local(), StreamableProcess.Config.builder(Stream.empty()).build(), command).forEach(System.out::println);
+    Cmd.stream(Shell.local(), command).forEach(System.out::println);
   }
 
   @Test(expected = UnexpectedExitValueException.class)
@@ -47,7 +47,7 @@ public class CmdTest extends TestUtils.TestBase {
           .add("echo $(which echo) && echo \"hello\" && cat hello")
           .configure(defaultIo)
           .build()
-          .run()
+          .stream()
           .forEach(System.out::println);
     } catch (UnexpectedExitValueException e) {
       System.err.println(e.exitValue());
@@ -70,7 +70,7 @@ public class CmdTest extends TestUtils.TestBase {
           .add("hello")
           .configure(defaultIo)
           .build()
-          .run()
+          .stream()
           .forEach(System.out::println);
     } catch (UnexpectedExitValueException e) {
       System.err.println("exitcode:" + e.exitValue());
@@ -87,7 +87,7 @@ public class CmdTest extends TestUtils.TestBase {
           .configure(createIo(Stream.of("hello", "world", "everyone")))
           .add("cat -n")
           .build()
-          .run()
+          .stream()
           .forEach(System.out::println);
     } catch (UnexpectedExitValueException e) {
       System.err.println(e.exitValue());
@@ -105,7 +105,7 @@ public class CmdTest extends TestUtils.TestBase {
           .configure(createIo(Stream.of("Hello", "world")))
           .build();
       System.out.println("commandLine=" + cmd);
-      cmd.run()
+      cmd.stream()
           .forEach(System.out::println);
     } catch (UnexpectedExitValueException e) {
       System.err.println(e.exitValue());

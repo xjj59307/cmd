@@ -16,6 +16,9 @@ import java.util.stream.Stream;
 import static java.util.Arrays.asList;
 
 
+/**
+ * A helper class to provide compatibility with 'commandrunner' library.
+ */
 public enum CommandUtils {
   ;
   private static final String[] LOCAL_SHELL = new String[] { "sh", "-c" };
@@ -64,7 +67,7 @@ public enum CommandUtils {
     final Callable<CommandResult> callable = () -> {
       String commandLine = shell.format();
       try {
-        cmd.run().forEach(s -> {
+        cmd.stream().forEach(s -> {
         });
         synchronized (exitValueHolder) {
           Integer exitValue;

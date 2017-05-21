@@ -1,6 +1,7 @@
 package com.github.dakusui.cmd;
 
 import com.github.dakusui.cmd.core.StreamableProcess;
+import com.github.dakusui.cmd.exceptions.CommandInterruptionException;
 import com.github.dakusui.cmd.exceptions.Exceptions;
 import com.github.dakusui.cmd.exceptions.UnexpectedExitValueException;
 
@@ -9,14 +10,14 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static java.util.Arrays.asList;
 import static java.util.stream.Collectors.toList;
 
-public interface Cmd extends Consumer<String> {
-  Stream<String> run();
+public interface Cmd {
+  Stream<String> stream();
 
   int exitValue();
 
@@ -26,12 +27,28 @@ public interface Cmd extends Consumer<String> {
 
   Shell getShell();
 
-  static Stream<String> run(Shell shell, String... commandLine) {
-    return cmd(shell, commandLine).run();
+  StreamableProcess.Config getProcessConfig();
+
+  default Cmd connect(String... commandLine) {
+    return connect(getShell(), commandLine);
   }
 
-  static Stream<String> run(Shell shell, StreamableProcess.Config config, String... commandLine) {
-    return cmd(shell, config, commandLine).run();
+  default Cmd connect(Shell shell, String... commandLine) {
+    return connect(
+        shell,
+        stdin -> new StreamableProcess.Config.Builder(stdin).build(),
+        commandLine
+    );
+  }
+
+  Cmd connect(Shell shell, Function<Stream<String>, StreamableProcess.Config> connector, String... commandLine);
+
+  static Stream<String> stream(Shell shell, String... commandLine) {
+    return cmd(shell, commandLine).stream();
+  }
+
+  static Stream<String> stream(Shell shell, StreamableProcess.Config config, String... commandLine) {
+    return cmd(shell, config, commandLine).stream();
   }
 
   static Cmd cmd(Shell shell, String... commandLine) {
@@ -44,18 +61,6 @@ public interface Cmd extends Consumer<String> {
         .withShell(shell)
         .configure(config)
         .build();
-  }
-
-  static StreamableProcess.Config connect(Stream<String> stdin) {
-    return connector(stdin).build();
-  }
-
-  static StreamableProcess.Config.Builder connector(Stream<String> stdin) {
-    return StreamableProcess.Config.builder(stdin);
-  }
-
-  static StreamableProcess.Config.Builder processConfigBuilder(Stream<String> stdin) {
-    return new StreamableProcess.Config.Builder(stdin);
   }
 
   class Builder {
@@ -92,10 +97,10 @@ public interface Cmd extends Consumer<String> {
   }
 
   class Impl implements Cmd {
+
     enum State {
       NOT_STARTED,
-      RUNNING,
-      FINISHED
+      STARTED,
     }
 
     static final Object SENTINEL = new Object();
@@ -105,6 +110,7 @@ public interface Cmd extends Consumer<String> {
     private       State                    state;
     private       StreamableProcess        process;
     private final StreamableProcess.Config processConfig;
+    private       ExecutorService          threadPool;
 
     Impl(Shell shell, String command, StreamableProcess.Config config) {
       this.shell = shell;
@@ -114,11 +120,17 @@ public interface Cmd extends Consumer<String> {
     }
 
     @Override
-    public Stream<String> run() {
-      ExecutorService excutorService = Executors.newFixedThreadPool(3);
-      synchronized (this) {
-        this.process = startProcess(this.shell, this.command, this.processConfig, excutorService);
-      }
+    public Cmd connect(Shell shell, Function<Stream<String>, StreamableProcess.Config> connector, String... commandLine) {
+      return Cmd.cmd(
+          shell,
+          connector.apply(this.stream()),
+          commandLine
+      );
+    }
+
+    @Override
+    public Stream<String> stream() {
+      this.run();
       return Stream.concat(
           this.process.getSelector().select(),
           Stream.of(SENTINEL)
@@ -146,7 +158,7 @@ public interface Cmd extends Consumer<String> {
                   process.stderr().close();
                 }
               } finally {
-                excutorService.shutdown();
+                threadPool.shutdown();
               }
             }
             return true;
@@ -158,22 +170,22 @@ public interface Cmd extends Consumer<String> {
 
     @Override
     public synchronized int exitValue() {
-      if (this.process == null)
-        throw new IllegalStateException();
+      if (this.state != State.STARTED)
+        throw Exceptions.illegalState(state, "!=State.STARTED");
       return this.process.exitValue();
     }
 
     @Override
     public synchronized void destroy() {
-      if (this.process == null)
-        throw new IllegalStateException();
+      if (this.state != State.STARTED)
+        throw Exceptions.illegalState(state, "!=State.STARTED");
       this.process.destroy();
     }
 
     @Override
     public synchronized int getPid() {
-      if (this.process == null)
-        throw new IllegalStateException();
+      if (this.state == State.NOT_STARTED)
+        throw Exceptions.illegalState(this.state, "==State.NOT_STARTED");
       return this.process.getPid();
     }
 
@@ -183,15 +195,29 @@ public interface Cmd extends Consumer<String> {
     }
 
     @Override
-    public String toString() {
-      return String.format("%s %s '%s'", shell.program(), String.join(" ", shell.options()), this.command);
+    public StreamableProcess.Config getProcessConfig() {
+      return this.processConfig;
     }
+
+    @Override
+    public String toString() {
+      return String.format("%s '%s'", this.getShell().format(), this.command);
+    }
+
+    private synchronized void run() {
+      if (state == State.STARTED)
+        throw Exceptions.illegalState(state, "!=State.STARTED");
+      this.threadPool = Executors.newFixedThreadPool(3);
+      this.process = startProcess(this.shell, this.command, this.processConfig, threadPool);
+      this.state = State.STARTED;
+    }
+
 
     private int waitFor(Process process) {
       try {
         return process.waitFor();
       } catch (InterruptedException e) {
-        throw Exceptions.wrap(e);
+        throw Exceptions.wrap(e, (Function<Throwable, RuntimeException>) throwable -> new CommandInterruptionException());
       }
     }
 
@@ -217,18 +243,6 @@ public interface Cmd extends Consumer<String> {
       } catch (IOException e) {
         throw Exceptions.wrap(e);
       }
-    }
-
-    @Override
-    public void accept(String s) {
-      synchronized (this) {
-        while (this.process == null)
-          try {
-            this.wait();
-          } catch (InterruptedException ignored) {
-          }
-      }
-      this.process.stdin().accept(s);
     }
   }
 }

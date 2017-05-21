@@ -16,4 +16,7 @@ public enum Exceptions {
     throw exceptionFactory.apply(throwable);
   }
 
+  public static IllegalStateException illegalState(Object currentState, String requirement) {
+    throw new IllegalStateException(String.format("Current state=<%s>, while it should be <%s>", currentState, requirement));
+  }
 }

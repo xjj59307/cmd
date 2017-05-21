@@ -149,7 +149,7 @@ public class ScenarioTest extends TestUtils.TestBase {
       @From("redirectsStderr") boolean redirectsStderr
   ) {
     List<String> stdout = new LinkedList<>();
-    Cmd.run(
+    Cmd.stream(
         shell,
         StreamableProcess.Config.builder(stdin.stream())
             .configureStdout(stdoutConsumer, s -> redirectsStdout)
@@ -175,7 +175,7 @@ public class ScenarioTest extends TestUtils.TestBase {
       @From("redirectsStderr") boolean redirectsStderr
   ) {
     Cmd cmd = buildCommand(shell, command, stdin, stdoutConsumer, redirectsStdout, stderrConsumer, redirectsStderr);
-    Stream<String> out = cmd.run();
+    Stream<String> out = cmd.stream();
     int pid = cmd.getPid();
     try {
       System.out.println("pid=" + pid);
@@ -209,7 +209,7 @@ public class ScenarioTest extends TestUtils.TestBase {
         redirectsStderr
     );
     try {
-      cmd.run().forEach(
+      cmd.stream().forEach(
           ((Consumer<String>) System.out::println)
               .andThen(stdout::add)
       );
