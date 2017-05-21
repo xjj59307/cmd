@@ -54,6 +54,10 @@ public interface Cmd extends Consumer<String> {
     return StreamableProcess.Config.builder(stdin);
   }
 
+  static StreamableProcess.Config.Builder processConfigBuilder(Stream<String> stdin) {
+    return new StreamableProcess.Config.Builder(stdin);
+  }
+
   class Builder {
     Shell shell;
     List<String>             command = new LinkedList<>();
@@ -88,7 +92,6 @@ public interface Cmd extends Consumer<String> {
   }
 
   class Impl implements Cmd {
-
     enum State {
       NOT_STARTED,
       RUNNING,
@@ -228,5 +231,4 @@ public interface Cmd extends Consumer<String> {
       this.process.stdin().accept(s);
     }
   }
-
 }

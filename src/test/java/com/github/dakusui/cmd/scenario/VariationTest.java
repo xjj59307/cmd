@@ -2,8 +2,10 @@ package com.github.dakusui.cmd.scenario;
 
 import com.github.dakusui.cmd.Cmd;
 import com.github.dakusui.cmd.Shell;
+import org.junit.Ignore;
 import org.junit.Test;
 
+@Ignore
 public class VariationTest {
   @Test
   public void givenPipedCmds$whenRun$thenPiped() {

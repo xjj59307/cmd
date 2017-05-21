@@ -36,8 +36,18 @@ public class ScenarioTest extends TestUtils.TestBase {
 
   private static final Consumer<String> NOP    = s -> {
   };
-  private static final Consumer<String> STDOUT = System.out::println;
-  private static final Consumer<String> STDERR = System.err::println;
+  /**
+   * If you make this a method reference, you cannot suppress output to stdout
+   * even if you are using TestUtils.TestBase.
+   */
+  @SuppressWarnings("Convert2MethodRef")
+  private static final Consumer<String> STDOUT = x -> System.out.println(x);
+  /**
+   * If you make this a method reference, you cannot suppress output to stderr
+   * even if you are using TestUtils.TestBase.
+   */
+  @SuppressWarnings("Convert2MethodRef")
+  private static final Consumer<String> STDERR = x -> System.err.println(x);
 
   @ParameterSource
   public Parameter.Factory<Shell> shell() {

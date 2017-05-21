@@ -41,7 +41,6 @@ public enum CommandUtils {
         .withShell(shell)
         .add(command)
         .configure(
-            //            new StreamableProcess.Config.Builder(Stream.empty())
             StreamableProcess.Config.builder(Stream.empty())
                 .configureStdout(s -> {
                   stdout.write(s);
