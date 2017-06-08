@@ -4,9 +4,7 @@ import com.github.dakusui.cmd.exceptions.CommandInterruptionException;
 import com.github.dakusui.cmd.exceptions.Exceptions;
 
 import java.util.*;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -100,7 +98,7 @@ public class Selector<T> {
 
     public Builder(int queueSize) {
       this.streams = new LinkedHashMap<>();
-      this.queue = new ArrayBlockingQueue<>(100);
+      this.queue = new ArrayBlockingQueue<>(queueSize);
     }
 
     public Builder<T> add(Stream<T> stream) {
@@ -157,13 +155,14 @@ public class Selector<T> {
     }
   }
 
+  @SuppressWarnings("ResultOfMethodCallIgnored")
   private static <T> void drain(Map<Stream<T>, Consumer<Object>> streams, ExecutorService executorService) {
     streams.entrySet().stream()
         .map(
             (Function<Map.Entry<Stream<T>, Consumer<Object>>, Runnable>)
                 (Map.Entry<Stream<T>, Consumer<Object>> entry) -> () -> appendSentinel(entry.getKey()).forEach(entry.getValue()))
         .map(executorService::submit)
-        .collect(toList());
+        .collect(toList()); // Make sure submitted tasks are all completed.
   }
 
   private static <T> Stream<Object> appendSentinel(Stream<T> stream) {

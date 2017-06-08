@@ -1,15 +1,19 @@
 package com.github.dakusui.cmd;
 
 import com.github.dakusui.cmd.core.StreamableProcess;
+import com.github.dakusui.cmd.core.Tee;
 import com.github.dakusui.cmd.exceptions.CommandInterruptionException;
 import com.github.dakusui.cmd.exceptions.Exceptions;
 import com.github.dakusui.cmd.exceptions.UnexpectedExitValueException;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -29,11 +33,11 @@ public interface Cmd {
 
   StreamableProcess.Config getProcessConfig();
 
-  default Cmd connect(String... commandLine) {
+  default Cmd connect(String commandLine) {
     return connect(getShell(), commandLine);
   }
 
-  default Cmd connect(Shell shell, String... commandLine) {
+  default Cmd connect(Shell shell, String commandLine) {
     return connect(
         shell,
         stdin -> new StreamableProcess.Config.Builder(stdin).build(),
@@ -41,26 +45,74 @@ public interface Cmd {
     );
   }
 
-  Cmd connect(Shell shell, Function<Stream<String>, StreamableProcess.Config> connector, String... commandLine);
+  default Cmd connect(Shell shell, Function<Stream<String>, StreamableProcess.Config> connector, String commandLine) {
+    return Cmd.cmd(
+        shell,
+        connector.apply(this.stream()),
+        commandLine
+    );
+  }
 
-  static Stream<String> stream(Shell shell, String... commandLine) {
+  default Tee.Connector<String> tee() {
+    return Tee.tee(this.stream());
+  }
+
+  static Stream<String> stream(Shell shell, String commandLine) {
     return cmd(shell, commandLine).stream();
   }
 
-  static Stream<String> stream(Shell shell, StreamableProcess.Config config, String... commandLine) {
+  static Stream<String> stream(Shell shell, StreamableProcess.Config config, String commandLine) {
     return cmd(shell, config, commandLine).stream();
   }
 
-  static Cmd cmd(Shell shell, String... commandLine) {
-    return cmd(shell, StreamableProcess.Config.builder(Stream.empty()).build(), commandLine);
+  static Cmd cmd(Shell shell, String commandLine, Stream<String> stdin, Consumer<String> stdout, Consumer<String> stderr) {
+    return cmd(
+        shell,
+        StreamableProcess.Config.builder(
+            stdin
+        ).configureStdout(
+            Objects.requireNonNull(stdout)
+        ).configureStderr(
+            Objects.requireNonNull(stderr)
+        ).build(),
+        commandLine
+    );
   }
 
-  static Cmd cmd(Shell shell, StreamableProcess.Config config, String... commandLine) {
+  static Cmd cmd(Shell shell, String commandLine, Stream<String> stdin, Consumer<String> stdout) {
+    return cmd(
+        shell,
+        commandLine,
+        stdin,
+        stdout,
+        s -> {
+        }
+    );
+  }
+
+  static Cmd cmd(Shell shell, String commandLine, Stream<String> stdin) {
+    return cmd(
+        shell,
+        commandLine,
+        stdin,
+        s -> {
+        });
+  }
+
+  static Cmd cmd(Shell shell, String commandLine) {
+    return cmd(shell, commandLine, Stream.empty());
+  }
+
+  static Cmd cmd(Shell shell, StreamableProcess.Config config, String commandLine) {
     return new Cmd.Builder()
-        .addAll(asList(commandLine))
+        .addAll(Collections.singletonList(commandLine))
         .withShell(shell)
         .configure(config)
         .build();
+  }
+
+  static Cmd.Builder local(String... commandLine) {
+    return new Cmd.Builder().withShell(Shell.local()).addAll(asList(commandLine));
   }
 
   class Builder {
@@ -117,15 +169,6 @@ public interface Cmd {
       this.command = command;
       this.processConfig = config;
       this.state = State.NOT_STARTED;
-    }
-
-    @Override
-    public Cmd connect(Shell shell, Function<Stream<String>, StreamableProcess.Config> connector, String... commandLine) {
-      return Cmd.cmd(
-          shell,
-          connector.apply(this.stream()),
-          commandLine
-      );
     }
 
     @Override

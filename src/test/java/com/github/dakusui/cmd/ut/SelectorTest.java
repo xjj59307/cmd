@@ -21,9 +21,9 @@ public class SelectorTest extends TestUtils.TestBase {
     ExecutorService executorService = Executors.newFixedThreadPool(3);
     try {
       Selector<String> selector = new Selector.Builder<String>(3)
-          .add(list("A", 5).stream().filter(s -> TestUtils.sleepAndReturn(true)))
-          .add(list("B", 10).stream().filter(s -> TestUtils.sleepAndReturn(true)))
-          .add(list("C", 20).stream().filter(s -> TestUtils.sleepAndReturn(false)))
+          .add(list("A", 5).stream().filter(s -> sleepAndReturn(true)))
+          .add(list("B", 10).stream().filter(s -> sleepAndReturn(true)))
+          .add(list("C", 20).stream().filter(s -> sleepAndReturn(false)))
           .withExecutorService(executorService)
           .build();
       try {
@@ -37,12 +37,12 @@ public class SelectorTest extends TestUtils.TestBase {
       out.forEach(System.out::println);
       //noinspection unchecked
       assertThat(out, CoreMatchers.allOf(
-          TestUtils.MatcherBuilder.<List<String>, Integer>matcherBuilder()
-              .f("sizeOf", List::size)
-              .p("5+10==", u -> 5 + 10 == u)
+          TestUtils.<List<String>, Integer>matcherBuilder()
+              .transform("sizeOf", List::size)
+              .check("5+10==", u -> 5 + 10 == u)
               .build(),
           TestUtils.MatcherBuilder.<List<String>>simple()
-              .p("interleaving", u -> !u.equals(u.stream().sorted().collect(toList())))
+              .check("interleaving", u -> !u.equals(u.stream().sorted().collect(toList())))
               .build()
 
       ));
@@ -58,5 +58,13 @@ public class SelectorTest extends TestUtils.TestBase {
       ret.add(String.format("%s-%s", prefix, i));
     }
     return ret;
+  }
+
+  private static boolean sleepAndReturn(boolean value) {
+    try {
+      Thread.sleep(1);
+    } catch (InterruptedException ignored) {
+    }
+    return value;
   }
 }

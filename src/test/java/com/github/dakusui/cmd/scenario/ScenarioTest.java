@@ -149,18 +149,19 @@ public class ScenarioTest extends TestUtils.TestBase {
       @From("redirectsStderr") boolean redirectsStderr
   ) {
     List<String> stdout = new LinkedList<>();
+    String cmdLine = String.join(" ", command);
     Cmd.stream(
         shell,
         StreamableProcess.Config.builder(stdin.stream())
             .configureStdout(stdoutConsumer, s -> redirectsStdout)
             .configureStderr(stderrConsumer, s -> redirectsStderr)
             .build(),
-        command
+        cmdLine
     ).forEach(
         ((Consumer<String>) System.out::println)
             .andThen(stdout::add)
     );
-    assertThat(stdout, stdoutMatcher(stdin, String.join(" ", command), redirectsStdout));
+    assertThat(stdout, stdoutMatcher(stdin, cmdLine, redirectsStdout));
   }
 
   @Test(timeout = 5_000)

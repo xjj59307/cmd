@@ -38,7 +38,7 @@ public class PipelineTest extends TestUtils.TestBase {
   }
 
   @Test
-  public void givenCmd$getProcessConfig$thenReturnedObjectSane() {
+  public void givenCmd$whenGetProcessConfig$thenReturnedObjectSane() {
     Cmd cmd = Cmd.cmd(Shell.local(), "echo hello");
     StreamableProcess.Config processConfig = cmd.getProcessConfig();
 
