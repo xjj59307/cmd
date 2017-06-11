@@ -1,6 +1,7 @@
-package com.github.dakusui.cmd.compat;
+package com.github.dakusui.cmd;
 
 
+@Deprecated
 public class CommandResult {
 
   private int    exitCode;

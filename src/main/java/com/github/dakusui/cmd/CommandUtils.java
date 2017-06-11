@@ -1,8 +1,6 @@
-package com.github.dakusui.cmd.compat;
+package com.github.dakusui.cmd;
 
-import com.github.dakusui.cmd.Cmd;
-import com.github.dakusui.cmd.Shell;
-import com.github.dakusui.cmd.compat.exceptions.CommandTimeoutException;
+import com.github.dakusui.cmd.exceptions.CommandTimeoutException;
 import com.github.dakusui.cmd.core.StreamableProcess;
 import com.github.dakusui.cmd.exceptions.CommandException;
 import com.github.dakusui.cmd.exceptions.Exceptions;
@@ -17,8 +15,11 @@ import static java.util.Arrays.asList;
 
 
 /**
- * A helper class to provide compatibility with 'commandrunner' library.
+ * A helper class to provide compatibility with 'commandrunner' library. This class is kept only for compatibility.
+ *
+ * @see Cmd
  */
+@Deprecated
 public enum CommandUtils {
   ;
   private static final String[] LOCAL_SHELL = new String[] { "sh", "-c" };

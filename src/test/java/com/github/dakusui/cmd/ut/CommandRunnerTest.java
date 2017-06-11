@@ -1,9 +1,9 @@
 package com.github.dakusui.cmd.ut;
 
-import com.github.dakusui.cmd.compat.CommandResult;
-import com.github.dakusui.cmd.compat.CommandUtils;
+import com.github.dakusui.cmd.CommandResult;
+import com.github.dakusui.cmd.CommandUtils;
 import com.github.dakusui.cmd.utils.TestUtils;
-import com.github.dakusui.cmd.compat.exceptions.CommandTimeoutException;
+import com.github.dakusui.cmd.exceptions.CommandTimeoutException;
 import junit.framework.TestCase;
 import org.hamcrest.CoreMatchers;
 import org.junit.Assert;
