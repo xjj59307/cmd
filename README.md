@@ -4,11 +4,11 @@ A library for Java 8 to run a shell command easily on Unix platforms.
 
 Creating a program that executes a shell command from Java is a tedious task but 
 there are a lot of pitfalls which we almost always fall whenever we write a program 
-to use ```Runtime#exec()`` method.
+to use ```Runtime#exec()``` method.
 
 This library does it well on behalf of you. 
 
-To run '''echo hello''', you can simply do either
+To run ```echo hello```, you can simply do either
 
 ```java
 
@@ -26,9 +26,9 @@ To run '''echo hello''', you can simply do either
 
 ```
 
-Examples above will print out a string ```echo``` to ```stdout```.
+Examples above will print out a string ```hello``` to ```stdout```.
 
-To do it over ```ssh```, do
+To do it over ```ssh```, do (make sure you can login ```yourHost``` with ```yourName``` without password before trying this)
 
 ```java
 
