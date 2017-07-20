@@ -77,12 +77,12 @@ public interface Cmd {
   /**
    * Sets a stream of strings from which this object read data. If you do not call
    * this method before the command represented by this object is executed, value
-   * returned by{@code Stream.empty()} will be used as default.
+   * returned by {@code Stream.empty()} will be used as default.
    *
-   * @param stdin A supplier of a stream of strings from which this object read data.
+   * @param stdin A stream of strings from which this object read data.
    * @return This object
    */
-  Cmd readFrom(Supplier<Stream<String>> stdin);
+  Cmd readFrom(Stream<String> stdin);
 
   /**
    * Sets a function that applies a given pipeline to a stream returned by {@code stream()}
@@ -221,12 +221,12 @@ public interface Cmd {
     }
 
     @Override
-    synchronized public Cmd readFrom(Supplier<Stream<String>> stdin) {
+    synchronized public Cmd readFrom(Stream<String> stdin) {
       requireNonNull(stdin);
       requireState(State.PREPARING);
       if (this.stdin != null)
         throw Exceptions.illegalState(this.stdin, "this.stdin==null");
-      this.stdin = stdin;
+      this.stdin = () -> stdin;
       return this;
     }
 

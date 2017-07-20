@@ -145,8 +145,6 @@ command of the name.
       public void tee10K() {
         cmd(
             "seq 1 10000"
-        ).readFrom(
-            () -> Stream.of((String) null)
         ).connect(
             cat().pipeline(
                 stream -> stream.map(

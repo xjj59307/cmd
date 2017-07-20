@@ -7,7 +7,6 @@ import org.junit.Test;
 import org.junit.runners.MethodSorters;
 
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Stream;
 
 import static com.github.dakusui.cmd.Cmd.cat;
 import static com.github.dakusui.cmd.Cmd.cmd;
@@ -111,8 +110,6 @@ public class PipelinedCmdTest extends TestUtils.TestBase {
 
     Cmd.cmd(
         "seq 1 10000"
-    ).readFrom(
-        () -> Stream.of((String) null)
     ).connect(
         cat().pipeline(
             stream -> stream.map(

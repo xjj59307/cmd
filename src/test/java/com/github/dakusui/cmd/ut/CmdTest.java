@@ -33,7 +33,7 @@ public class CmdTest extends TestUtils.TestBase {
     cmd(
         "cat"
     ).readFrom(
-        () -> Stream.of("Hello", "World")
+        Stream.of("Hello", "World")
     ).connect(
         cat().pipeline(stream -> stream.map(String::toUpperCase))
     ).connect(
@@ -147,7 +147,7 @@ public class CmdTest extends TestUtils.TestBase {
     cmd(
         "echo hello"
     ).readFrom(
-        Stream::empty
+        Stream.empty()
     ).stream(
     ).peek(
         System.out::println
@@ -177,7 +177,7 @@ public class CmdTest extends TestUtils.TestBase {
     cmd(
         IntStream.range(0, 100).mapToObj(i -> String.format("echo %d", i)).collect(Collectors.joining(" && "))
     ).readFrom(
-        Stream::empty
+        Stream.empty()
     ).stream(
     ).peek(
         System.out::println
@@ -212,7 +212,7 @@ public class CmdTest extends TestUtils.TestBase {
     cmd(
         "cat -n"
     ).readFrom(
-        () -> Stream.of("Hello", "world")
+        Stream.of("Hello", "world")
     ).stream(
     ).peek(
         System.out::println
@@ -247,7 +247,7 @@ public class CmdTest extends TestUtils.TestBase {
     cmd(
         "echo Hello && echo world"
     ).readFrom(
-        Stream::empty
+        Stream.empty()
     ).connect(cmd(
         "cat -n"
     )).stream(
@@ -285,7 +285,7 @@ public class CmdTest extends TestUtils.TestBase {
     cmd(
         "echo Hello && echo world"
     ).readFrom(
-        Stream::empty
+        Stream.empty()
     ).connect(
         cmd(
             "cat -n"
@@ -344,7 +344,7 @@ public class CmdTest extends TestUtils.TestBase {
             "cat -n"
         ))
     ).readFrom(
-        Stream::empty
+        Stream.empty()
     ).stream(
     ).peek(
         System.out::println
@@ -379,7 +379,7 @@ public class CmdTest extends TestUtils.TestBase {
     cmd(
         "echo world && echo Hello"
     ).readFrom(
-        Stream::empty
+        Stream.empty()
     ).connect(
         cmd(
             "cat"
