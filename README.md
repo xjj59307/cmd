@@ -68,7 +68,7 @@ Enjoy.
 
 ## Redirection
 You can pipe commands not only using ```|``` in command line string but also using
-```connectTo``` method. This allows you to make your command line string 
+```connect``` method. This allows you to make your command line string 
 structured and programmable.
 
 ```bash
