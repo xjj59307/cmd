@@ -59,7 +59,7 @@ Enjoy.
 
   <dependency>
     <groupId>com.github.dakusui</groupId>
-    <artifactId>cmdstreamer</artifactId>
+    <artifactId>cmd</artifactId>
     <version>[0.10.0,)</version>
   </dependency>
 ```
