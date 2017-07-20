@@ -23,7 +23,7 @@ public interface Selector<T> {
    */
   static <T> Stream<T> select(List<Stream<T>> streams) {
     return new Selector.Builder<T>("Selector.select") {{
-      streams.forEach(each -> add(each, IoUtils.nop(), true));
+      streams.forEach((Stream<T> each) -> add(each, IoUtils.nop(), true));
     }}.build().stream();
   }
 
@@ -57,7 +57,7 @@ public interface Selector<T> {
      * will not be found in the stream returned by {@code Selector#stream} method.
      *
      * @param stream           A stream from which data should be read.
-     * @param consumer         A consumer that consumes data from {@cdoe stream}.
+     * @param consumer         A consumer that consumes data from {@code stream}.
      * @param passToDownStream Specified if data {@code stream} should be passed
      *                         to selector's output.
      * @return This object.
