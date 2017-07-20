@@ -1,9 +1,8 @@
 package com.github.dakusui.cmd.io;
 
 /**
- * This class is not necessary anymore.
+ * This class is necessary only for compatibility.
  *
- * @see com.github.dakusui.cmd.Cmd
  */
 @Deprecated
 public class RingBufferedLineWriter implements LineWriter {

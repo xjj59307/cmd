@@ -2,8 +2,6 @@ package com.github.dakusui.cmd.exceptions;
 
 /**
  * An exception class to indicate an error is detected during command execution
- *
- * @author ukaihiroshi01
  */
 public abstract class CommandException extends RuntimeException {
   /**

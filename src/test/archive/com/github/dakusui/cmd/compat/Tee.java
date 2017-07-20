@@ -1,4 +1,4 @@
-package com.github.dakusui.cmd.core;
+package com.github.dakusui.cmd.compat;
 
 import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -42,8 +42,8 @@ public class Tee<T> extends Thread {
   @Override
   public void run() {
     List<Queue<Object>> pendings = new LinkedList<>();
-    Stream.concat(in, Stream.of(SENTINEL))
-        .forEach((Object t) -> {
+    Stream.concat(in, Stream.of(SENTINEL)).forEach(
+        (Object t) -> {
           pendings.addAll(this.queues);
           synchronized (this.queues) {
             while (!pendings.isEmpty()) {
@@ -63,10 +63,6 @@ public class Tee<T> extends Thread {
 
   public static <T> Connector<T> tee(Stream<T> in) {
     return new Connector<>(in);
-  }
-
-  public static <T> Connector<T> tee(Stream<T> in, int queueSize) {
-    return tee(in).setQueueSize(queueSize);
   }
 
   private List<Stream<T>> createDownStreams() {
@@ -130,15 +126,10 @@ public class Tee<T> extends Thread {
     private       long                      timeOut     = 60;
     private       TimeUnit                  timeOutUnit = TimeUnit.SECONDS;
     private final List<Consumer<Stream<T>>> consumers   = new LinkedList<>();
-
+    private Thread thread;
 
     public Connector(Stream<T> in) {
       this.in = Objects.requireNonNull(in);
-    }
-
-    public Connector<T> setQueueSize(int queueSize) {
-      this.queueSize = check(queueSize, v -> v > 0, IllegalArgumentException::new);
-      return this;
     }
 
     public Connector<T> timeOut(long timeOut, TimeUnit timeUnit) {
@@ -147,10 +138,8 @@ public class Tee<T> extends Thread {
       return this;
     }
 
-
-    public <U> Connector<T> connect(Function<Stream<T>, Stream<U>> map, Consumer<U> action) {
+    public <U> void connect(Function<Stream<T>, Stream<U>> map, Consumer<U> action) {
       this.consumers.add(stream -> map.apply(stream).forEach(action));
-      return this;
     }
 
     public Connector<T> connect(Consumer<T> consumer) {
@@ -184,25 +173,33 @@ public class Tee<T> extends Thread {
      * @throws InterruptedException if interrupted while waiting
      */
     public boolean run(long timeOut, TimeUnit unit) throws InterruptedException {
+      this.thread = null;
       Tee<T> tee = new Tee<>(this.in, consumers.size(), this.queueSize);
       AtomicInteger i = new AtomicInteger(0);
       ForkJoinPool pool = new ForkJoinPool(consumers.size());
-      tee.start();
-      try {
-        consumers.stream(
-        ).map(
-            (Consumer<Stream<T>> consumer) -> (Runnable) () -> consumer.accept(tee.streams().get(i.getAndIncrement()))
-        ).map(
-            pool::submit
-        ).parallel(
-        ).forEach(
-            task -> {
-            }
-        );
-      } finally {
-        pool.shutdown();
+      synchronized (this) {
+        tee.start();
+        try {
+          consumers.stream(
+          ).map(
+              (Consumer<Stream<T>> consumer) -> (Runnable) () -> consumer.accept(tee.streams().get(i.getAndIncrement()))
+          ).map(
+              pool::submit
+          ).parallel(
+          ).forEach(
+              task -> {
+              }
+          );
+        } finally {
+          pool.shutdown();
+        }
+        this.thread = Thread.currentThread();
       }
       return pool.awaitTermination(timeOut, unit);
+    }
+
+    public synchronized void interrupt() {
+      this.thread.interrupt();
     }
   }
 }

@@ -1,171 +1,104 @@
 package com.github.dakusui.cmd.core;
 
-import com.github.dakusui.cmd.exceptions.CommandInterruptionException;
-import com.github.dakusui.cmd.exceptions.Exceptions;
-
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
-import static java.util.stream.Collectors.toList;
+import static java.util.Objects.requireNonNull;
 
-public class Selector<T> {
-  private static final Object SENTINEL  = new Object() {
-    @Override
-    public String toString() {
-      return "SENTINEL";
-    }
-  };
-  private static final Object READ_NEXT = new Object() {
-    @Override
-    public String toString() {
-      return "READ_NEXT";
-    }
-  };
+public interface Selector<T> {
+  Stream<T> stream();
 
-  private final Map<Stream<T>, Consumer<Object>> streams;
-  private final ExecutorService                  executorService;
-  private final BlockingQueue<Object>            queue;
-  private       boolean                          closed;
 
-  Selector(Map<Stream<T>, Consumer<Object>> streams, BlockingQueue<Object> queue, ExecutorService executorService) {
-    this.streams = new LinkedHashMap<Stream<T>, Consumer<Object>>() {{
-      putAll(streams);
-    }};
-    this.executorService = executorService;
-    this.queue = queue;
-    this.closed = false;
+  @SafeVarargs
+  static <T> Stream<T> select(Stream<T>... streams) {
+    return select(Arrays.asList(streams));
   }
 
-  public Stream<T> select() {
-    drain(
-        this.streams,
-        this.executorService
-    );
-    return StreamSupport.stream(
-        ((Iterable<T>) () -> new Iterator<T>() {
-          Object next = READ_NEXT;
-
-          @Override
-          public boolean hasNext() {
-            if (next == READ_NEXT)
-              next = takeFromQueue();
-            return next != SENTINEL;
-          }
-
-          private Object takeFromQueue() {
-            synchronized (queue) {
-              while (!closed || !queue.isEmpty()) {
-                try {
-                  return queue.take();
-                } catch (InterruptedException ignored) {
-                }
-              }
-            }
-            throw new CommandInterruptionException();
-          }
-
-          @SuppressWarnings("unchecked")
-          @Override
-          public T next() {
-            if (next == SENTINEL)
-              throw new NoSuchElementException();
-            try {
-              return (T) next;
-            } finally {
-              next = READ_NEXT;
-            }
-          }
-        }).spliterator(),
-        false
-    );
+  /**
+   *
+   */
+  static <T> Stream<T> select(List<Stream<T>> streams) {
+    return new Selector.Builder<T>("Selector.select") {{
+      streams.forEach(each -> add(each, IoUtils.nop(), true));
+    }}.build().stream();
   }
 
-  public void close() {
-    synchronized (queue) {
-      closed = true;
-      queue.notifyAll();
-    }
-  }
+  class Builder<T> {
+    static class Record<T> {
+      private final T           data;
+      private final Consumer<T> consumer;
+      private final boolean     passToDownstream;
 
-  public static class Builder<T> {
-    private final Map<Stream<T>, Consumer<T>> streams;
-    private final BlockingQueue<Object>       queue;
-    private ExecutorService executorService = null;
-
-    public Builder(int queueSize) {
-      this.streams = new LinkedHashMap<>();
-      this.queue = new ArrayBlockingQueue<>(queueSize);
+      Record(T data, Consumer<T> consumer, boolean passToDownstream) {
+        this.data = data;
+        this.consumer = consumer;
+        this.passToDownstream = passToDownstream;
+      }
     }
 
-    public Builder<T> add(Stream<T> stream) {
-      return add(stream, null);
+    private final String name;
+
+    private final Map<Stream<T>, Consumer<T>> consumers;
+    private final Map<Stream<T>, Boolean>     toBePassed;
+
+
+    public Builder(String name) {
+      this.name = name;
+      this.consumers = new LinkedHashMap<>();
+      this.toBePassed = new LinkedHashMap<>();
     }
 
-    public Builder<T> add(Stream<T> stream, Consumer<T> consumer) {
-      this.streams.put(stream, consumer);
-      return this;
-    }
-
-    public Builder<T> withExecutorService(ExecutorService executorService) {
-      this.executorService = executorService;
+    /**
+     * If {@code false} is given to {@code passToDownStream}, data from {@code stream}
+     * will not be found in the stream returned by {@code Selector#stream} method.
+     *
+     * @param stream           A stream from which data should be read.
+     * @param consumer         A consumer that consumes data from {@cdoe stream}.
+     * @param passToDownStream Specified if data {@code stream} should be passed
+     *                         to selector's output.
+     * @return This object.
+     */
+    public Builder<T> add(Stream<T> stream, Consumer<T> consumer, boolean passToDownStream) {
+      this.consumers.put(requireNonNull(stream), requireNonNull(consumer));
+      this.toBePassed.put(stream, passToDownStream);
       return this;
     }
 
     public Selector<T> build() {
-      Consumer<Object> defaultConsumer = new Consumer<Object>() {
-        int numConsumedSentinels = 0;
-        final int numStreamsForThisConsumer = (int) streams.values().stream().filter(Objects::isNull).count();
+      return new Selector<T>() {
+        @Override
+        public Stream<T> stream() {
+          return consumers.keySet(
+          ).stream(
+          ).parallel(
+          ).flatMap(
+              stream -> stream.map(
+                  t -> new Record<>(t, consumers.get(stream), toBePassed.get(stream))
+              )
+          ).peek(
+              r -> r
+                  .consumer
+                  .accept(r.data)
+          ).filter(
+              r -> r.passToDownstream
+          ).map(
+              tRecord -> tRecord.data
+          ).onClose(
+              () -> {
+                consumers.keySet().forEach(Stream::close);
+              }
+          );
+        }
 
         @Override
-        public synchronized void accept(Object t) {
-          if (t != SENTINEL || (++numConsumedSentinels == numStreamsForThisConsumer))
-            putInQueue(t);
-        }
-
-        private void putInQueue(Object t) {
-          try {
-            Builder.this.queue.put(t);
-          } catch (InterruptedException e) {
-            throw Exceptions.wrap(e);
-          }
+        public String toString() {
+          return name;
         }
       };
-      return new Selector<>(
-          new LinkedHashMap<Stream<T>, Consumer<Object>>() {{
-            Builder.this.streams.forEach(
-                (stream, consumer) -> put(
-                    stream,
-                    consumer != null ?
-                        (Consumer<Object>) o -> {
-                          if (o != SENTINEL)
-                            //noinspection unchecked
-                            consumer.accept((T) o);
-                        } :
-                        defaultConsumer
-                )
-            );
-          }},
-          this.queue,
-          Objects.requireNonNull(this.executorService)
-      );
     }
-  }
-
-  @SuppressWarnings("ResultOfMethodCallIgnored")
-  private static <T> void drain(Map<Stream<T>, Consumer<Object>> streams, ExecutorService executorService) {
-    streams.entrySet().stream()
-        .map(
-            (Function<Map.Entry<Stream<T>, Consumer<Object>>, Runnable>)
-                (Map.Entry<Stream<T>, Consumer<Object>> entry) -> () -> appendSentinel(entry.getKey()).forEach(entry.getValue()))
-        .map(executorService::submit)
-        .collect(toList()); // Make sure submitted tasks are all completed.
-  }
-
-  private static <T> Stream<Object> appendSentinel(Stream<T> stream) {
-    return Stream.concat(stream, Stream.of(SENTINEL));
   }
 }

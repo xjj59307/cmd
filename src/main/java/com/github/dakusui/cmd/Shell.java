@@ -15,12 +15,7 @@ public interface Shell {
   List<String> options();
 
   default String format() {
-    return String.join(
-        " ",
-        Stream.concat(
-            Stream.of(program()),
-            options().stream()
-        ).collect(toList()));
+    return String.format("%s %s", program(), String.join(" ", options()));
   }
 
   static Shell local() {
@@ -51,8 +46,13 @@ public interface Shell {
     public List<String> options() {
       return options;
     }
+
+    public String toString() {
+      return format();
+    }
   }
 
+  @SuppressWarnings("WeakerAccess")
   abstract class Builder<B extends Builder> {
     private String program;
     private List<String> options = new LinkedList<>();
@@ -76,7 +76,7 @@ public interface Shell {
     }
 
     @SuppressWarnings("unchecked")
-    public B addOption(String option, String value) {
+    public B addOption(@SuppressWarnings("SameParameterValue") String option, String value) {
       this.options.add(option);
       this.options.add(value);
       return (B) this;
@@ -101,6 +101,7 @@ public interface Shell {
       return (B) this;
     }
 
+    @SuppressWarnings("WeakerAccess")
     public static class ForLocal extends Builder<Builder.ForLocal> {
       public ForLocal() {
         this.withProgram("sh")
@@ -108,6 +109,7 @@ public interface Shell {
       }
     }
 
+    @SuppressWarnings("WeakerAccess")
     public static class ForSsh extends Builder<Builder.ForSsh> {
       private       String userName;
       private final String hostName;

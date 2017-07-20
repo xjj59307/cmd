@@ -4,6 +4,7 @@ import java.util.function.Function;
 
 public enum Exceptions {
   ;
+
   public static <T extends RuntimeException> T wrap(Throwable throwable) {
     throw wrap(throwable, InternalException::new);
   }
@@ -18,5 +19,9 @@ public enum Exceptions {
 
   public static IllegalStateException illegalState(Object currentState, String requirement) {
     throw new IllegalStateException(String.format("Current state=<%s>, while it should be <%s>", currentState, requirement));
+  }
+
+  public static InternalException illegalException(Throwable t) {
+    throw new InternalException("This exception shouldn't be thrown here", t);
   }
 }

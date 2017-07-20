@@ -1,6 +1,6 @@
-package com.github.dakusui.cmd.ut;
+package com.github.dakusui.cmd.compat;
 
-import com.github.dakusui.cmd.core.Tee;
+import com.github.dakusui.cmd.compat.Tee;
 import org.junit.Test;
 
 import java.util.LinkedList;
@@ -19,8 +19,6 @@ public class TeeTimeoutTest {
     assertFalse(
         Tee.tee(
             Stream.of(1, 2, 3)
-        ).setQueueSize(
-            256
         ).timeOut(
             1, MILLISECONDS
         ).connect(

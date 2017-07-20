@@ -38,4 +38,15 @@ public class CommandResult {
     return this.commandLine;
   }
 
+  @Override
+  public String toString() {
+    return String.format(
+        "'%s' exit with %d:'%s'",
+        commandLine(),
+        exitCode(),
+        stdouterr().substring(
+            0,
+            Math.min(this.stderr().length(), 80)
+        ));
+  }
 }

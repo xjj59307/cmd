@@ -2,6 +2,7 @@ package com.github.dakusui.cmd.utils;
 
 import com.github.dakusui.cmd.Cmd;
 import com.github.dakusui.cmd.Shell;
+import com.github.dakusui.cmd.exceptions.Exceptions;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.DiagnosingMatcher;
@@ -11,6 +12,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.*;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -34,8 +36,37 @@ public enum TestUtils {
     return MatcherBuilder.create();
   }
 
+  public static <T, U> MatcherBuilder<T, U> matcherBuilder(String name, Function<T, U> transformer) {
+    return MatcherBuilder.<T, U>create().<T, U>transform(name, transformer);
+  }
+
+  public static String base64() {
+    String systemName = systemName();
+    String ret;
+    if ("Linux".equals(systemName)) {
+      ret = "base64 -w";
+    } else if ("Mac OS X".equals(systemName)) {
+      ret = "base64 -b";
+    } else {
+      throw new RuntimeException(String.format("%s is not a supported platform.", systemName));
+    }
+    return ret;
+  }
+
+  public static String systemName() {
+    return System.getProperty("os.name");
+  }
+
+  public static List<String> list(String prefix, int size) {
+    List<String> ret = new ArrayList<>(size);
+    for (int i = 0; i < size; i++) {
+      ret.add(String.format("%s-%s", prefix, i));
+    }
+    return ret;
+  }
+
   /**
-   * A base class for tests which writes to stdout/stderr.
+   * A base class for tests which writes to to/stderr.
    */
   public static class TestBase {
     @Before
@@ -77,7 +108,7 @@ public enum TestUtils {
   public static String identity() {
     String key = "commandstreamer.identity";
     if (!System.getProperties().containsKey(key))
-      return String.format("%s/.ssh/id_rsa", Cmd.stream(Shell.local(), "echo $HOME").collect(Collectors.joining()));
+      return String.format("%s/.ssh/id_rsa", Cmd.cmd("echo $HOME").stream().collect(Collectors.joining()));
     return System.getProperty(key);
   }
 
@@ -92,7 +123,7 @@ public enum TestUtils {
     ///
     // Safest way to get hostname. (or least bad way to get it)
     // See http://stackoverflow.com/questions/7348711/recommended-way-to-get-hostname-in-java
-    return Cmd.stream(Shell.local(), "hostname").collect(Collectors.joining());
+    return Cmd.cmd(Shell.local(), "hostname").stream().collect(Collectors.joining());
   }
 
   public static InputStream openForRead(File file) {
@@ -189,12 +220,25 @@ public enum TestUtils {
       protected boolean matches(Object o, Description mismatch) {
         boolean ret = true;
         for (Matcher<? super T> matcher : matchers) {
-          if (!matcher.matches(o)) {
+          try {
+            if (!matcher.matches(o)) {
+              if (ret)
+                mismatch.appendText("(");
+              mismatch.appendText("\n  ");
+              mismatch.appendDescriptionOf(matcher).appendText(" ");
+              matcher.describeMismatch(o, mismatch);
+              ret = false;
+            }
+          } catch (Exception e) {
             if (ret)
               mismatch.appendText("(");
             mismatch.appendText("\n  ");
-            mismatch.appendDescriptionOf(matcher).appendText(" ");
-            matcher.describeMismatch(o, mismatch);
+            mismatch
+                .appendDescriptionOf(matcher)
+                .appendText(" on ")
+                .appendValue(o)
+                .appendText(" ")
+                .appendText(String.format("failed with %s(%s)", e.getClass().getCanonicalName(), e.getMessage()));
             ret = false;
           }
         }
@@ -239,6 +283,27 @@ public enum TestUtils {
     });
 
     return count.get();
+  }
+
+  public static boolean terminatesIn(Runnable runnable, long millis) {
+    Thread t = new Thread(runnable);
+    t.start();
+    try {
+      long before = System.currentTimeMillis();
+      while (true) {
+        if (System.currentTimeMillis() - before >= millis) {
+          boolean ret = Thread.State.TERMINATED.equals(t.getState());
+          if (!ret)
+            Arrays.stream(t.getStackTrace()).forEach(e -> System.out.println("\t" + e));
+          return ret;
+        }
+        if (Thread.State.TERMINATED.equals(t.getState()))
+          return true;
+        Thread.sleep(1);
+      }
+    } catch (InterruptedException e) {
+      throw Exceptions.wrap(e);
+    }
   }
 
   public static class SelfTest {

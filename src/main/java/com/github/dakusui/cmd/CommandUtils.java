@@ -1,15 +1,17 @@
 package com.github.dakusui.cmd;
 
-import com.github.dakusui.cmd.exceptions.CommandTimeoutException;
-import com.github.dakusui.cmd.core.StreamableProcess;
+import com.github.dakusui.cmd.core.IoUtils;
 import com.github.dakusui.cmd.exceptions.CommandException;
+import com.github.dakusui.cmd.exceptions.CommandTimeoutException;
 import com.github.dakusui.cmd.exceptions.Exceptions;
 import com.github.dakusui.cmd.exceptions.UnexpectedExitValueException;
 import com.github.dakusui.cmd.io.RingBufferedLineWriter;
 
+import java.nio.charset.Charset;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Stream;
+import java.util.function.Consumer;
+import java.util.function.IntPredicate;
 
 import static java.util.Arrays.asList;
 
@@ -28,8 +30,8 @@ public enum CommandUtils {
     return run(
         timeOut,
         new Shell.Builder.ForLocal()
-            .withProgram(execShell[0])
             .clearOptions()
+            .withProgram(execShell[0])
             .addAllOptions(asList(execShell).subList(1, execShell.length))
             .build(),
         command
@@ -42,58 +44,58 @@ public enum CommandUtils {
     RingBufferedLineWriter stdouterr = new RingBufferedLineWriter(100);
     AtomicReference<Integer> exitValueHolder = new AtomicReference<>(null);
     Cmd cmd = new Cmd.Builder()
-        .withShell(shell)
-        .add(command)
-        .configure(
-            StreamableProcess.Config.builder(Stream.empty())
-                .configureStdout(s -> {
-                  stdout.write(s);
-                  stdouterr.write(s);
-                })
-                .configureStderr(s -> {
-                  stderr.write(s);
-                  stdouterr.write(s);
-                })
-                .checkExitValueWith(exitValue -> {
-                  synchronized (exitValueHolder) {
-                    exitValueHolder.set(exitValue);
-                    exitValueHolder.notifyAll();
-                    return exitValue == 0;
-                  }
-                })
-                .build()
-        )
-        .build();
+        .with(
+            shell
+        ).command(
+            command
+        ).charset(
+            Charset.defaultCharset()
+        ).checkExitValue(
+            ((IntPredicate) (exitValue -> {
+              synchronized (exitValueHolder) {
+                exitValueHolder.set(exitValue);
+                exitValueHolder.notifyAll();
+              }
+              return true;
+            })).and(
+                ////
+                // Since exitValue should be stored in CommandResult object, no exception
+                // needs to be thrown.
+                exitValue -> true
+            )
+        ).transformInput(
+            s -> s
+        ).transformStdout(
+            s -> s
+        ).consumeStdout(
+            ((Consumer<String>) (stdout::write)).andThen(stdouterr::write)
+        ).transformStderr(
+            s -> s
+        ).consumeStderr(
+            ((Consumer<String>) (stderr::write)).andThen(stdouterr::write)
+        ).build();
 
     final Callable<CommandResult> callable = () -> {
-      String commandLine = shell.format();
       try {
-        cmd.stream().forEach(s -> {
-        });
+        cmd.stream().forEach(IoUtils.nop());
+        Integer exitValue;
         synchronized (exitValueHolder) {
-          Integer exitValue;
           while ((exitValue = exitValueHolder.get()) == null) {
             try {
               exitValueHolder.wait();
             } catch (InterruptedException ignored) {
             }
           }
-          return new CommandResult(
-              String.join(" "),
-              exitValue,
-              stdout.asString(),
-              stderr.asString(),
-              stdouterr.asString()
-          );
         }
-      } catch (UnexpectedExitValueException e) {
         return new CommandResult(
-            commandLine,
-            e.exitValue(),
+            command,
+            exitValue,
             stdout.asString(),
             stderr.asString(),
             stdouterr.asString()
         );
+      } catch (UnexpectedExitValueException e) {
+        throw Exceptions.illegalException(e);
       }
     };
     if (timeOut <= 0) {
