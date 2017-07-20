@@ -196,9 +196,6 @@ By using ```CommandUtils```, you can replace your dependency on ```commandrunner
 
 ```
 
-# Future works
-* Implement a timeout feature
-
 # References
 * [0] "commandrunner"
 
