@@ -39,7 +39,7 @@ To do it over ```ssh```, do (make sure you can login ```yourHost``` with ```your
   }
 ```
 
-If you want to specity an identity file (ssh key), you can do
+If you want to specify an identity file (ssh key), you can do
 
 ```java
   public class SshExample {
@@ -58,7 +58,7 @@ Enjoy.
 ```xml
 
   <dependency>
-    <groupId>com.github.dakusui</groupId>
+    <groupId>com.github.xjj59307</groupId>
     <artifactId>cmd</artifactId>
     <version>[0.11.0,)</version>
   </dependency>
@@ -178,25 +178,3 @@ RIGHT:4
 RIGHT:5
 ...
 ```
-
-## Compatibility with ```commandrunner``` library
-This library is designed to be compatible with ```commandrunner```[[0]] library.
-By using ```CommandUtils```, you can replace your dependency on ```commandrunner```.
-
-```java
-
-  public class CommandUtilsExample {
-      public void runLocal_echo_hello() throws Exception {
-        CommandResult result = CommandUtils.runLocal("echo hello");
-        // ...
-      }
-  }
-
-```
-
-# References
-* [0] "commandrunner"
-
-[0]: https://github.com/xjj59307/commandrunner
-
-
