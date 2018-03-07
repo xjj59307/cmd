@@ -163,6 +163,33 @@ public class StreamableProcessTest extends TestUtils.TestBase {
     Assert.assertEquals(Arrays.asList("bar", "ngauto", userName), stdout);
   }
 
+  @Test
+  public void givenNoEnvVars$whenRunCmd$thenOriginalEnvVarsCanBeSeen() {
+    List<String> stdout = new StreamableProcess(
+        localShell(),
+        "echo $USER",
+        config(Stream.empty())
+    ).stream().collect(Collectors.toList());
+
+    String userName = Cmd.cmd("whoami").stream().collect(Collectors.joining());
+    Assert.assertEquals(Collections.singletonList(userName), stdout);
+  }
+
+  @Test
+  public void givenEnvVars$whenRunCmd$thenOriginalEnvVarsOverridden() {
+    List<String> stdout = new StreamableProcess(
+        localShell(),
+        "echo $USER",
+        null,
+        new HashMap<String, String>() {{
+          put("USER", "ngsuser");
+        }},
+        config(Stream.empty())
+    ).stream().collect(Collectors.toList());
+
+    Assert.assertEquals(Collections.singletonList("ngsuser"), stdout);
+  }
+
   private Shell localShell() {
     return new Shell.Builder.ForLocal().build();
   }

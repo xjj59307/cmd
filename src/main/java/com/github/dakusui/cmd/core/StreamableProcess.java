@@ -16,7 +16,6 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static java.util.Objects.requireNonNull;
-import static java.util.stream.Collectors.toList;
 
 public class StreamableProcess extends Process {
   private static final Logger LOGGER = LoggerFactory.getLogger(StreamableProcess.class);
@@ -40,6 +39,9 @@ public class StreamableProcess extends Process {
     this.command = command;
   }
 
+  /**
+   * This constructor is only for testing.
+   */
   public StreamableProcess(Shell shell, String command, Config config) {
     this(shell, command, null, new HashMap<>(), config);
   }
