@@ -9,10 +9,9 @@ import com.github.dakusui.cmd.exceptions.UnexpectedExitValueException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.nio.charset.Charset;
-import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntPredicate;
@@ -128,9 +127,21 @@ public interface Cmd {
     private Function<Stream<String>, Stream<String>> stderrTransformer;
     private Consumer<String>                         stdoutConsumer;
     private Consumer<String>                         stderrConsumer;
+    private File                                     cwd;
+    private Map<String, String> env = new HashMap<>();
 
     public Builder with(Shell shell) {
       this.shell = requireNonNull(shell);
+      return this;
+    }
+
+    public Builder with(File cwd) {
+      this.cwd = cwd;
+      return this;
+    }
+
+    public Builder with(Map<String, String> env) {
+      this.env = env;
       return this;
     }
 
@@ -187,7 +198,7 @@ public interface Cmd {
     }
 
     public Cmd build() {
-      return new Impl(this.shell, this.command, this.exitValueChecker, this.inputTransformer, this.stdoutTransformer, this.stdoutConsumer, this.stderrTransformer, this.stderrConsumer, charset);
+      return new Impl(this.shell, this.command, this.cwd, this.env, this.exitValueChecker, this.inputTransformer, this.stdoutTransformer, this.stdoutConsumer, this.stderrTransformer, this.stderrConsumer, charset);
     }
   }
 
@@ -205,11 +216,15 @@ public interface Cmd {
     private       State                                    state;
     private       StreamableProcess                        process;
     private Supplier<Stream<String>> stdin = null;
+    private final File                cwd;
+    private final Map<String, String> env;
 
-    private Impl(Shell shell, String command, IntPredicate exitValueChecker, Function<Stream<String>, Stream<String>> inputTransformer, Function<Stream<String>, Stream<String>> stdoutTransformer, Consumer<String> stdoutConsumer, Function<Stream<String>, Stream<String>> stderrTransformer, Consumer<String> stderrConsumer, Charset charset) {
+    private Impl(Shell shell, String command, File cwd, Map<String, String> env, IntPredicate exitValueChecker, Function<Stream<String>, Stream<String>> inputTransformer, Function<Stream<String>, Stream<String>> stdoutTransformer, Consumer<String> stdoutConsumer, Function<Stream<String>, Stream<String>> stderrTransformer, Consumer<String> stderrConsumer, Charset charset) {
       this.exitValueChecker = requireNonNull(exitValueChecker);
       this.shell = requireNonNull(shell);
       this.command = requireNonNull(command);
+      this.cwd = cwd;
+      this.env = env;
       this.charset = requireNonNull(charset);
       this.inputTransformer = requireNonNull(inputTransformer);
       this.stdoutTransformer = requireNonNull(stdoutTransformer);
@@ -260,7 +275,7 @@ public interface Cmd {
     synchronized public Stream<String> stream() {
       LOGGER.info("BEGIN:{}", this);
       requireState(State.PREPARING);
-      this.process = startProcess(this.shell, this.command, composeProcessConfig());
+      this.process = startProcess(this.shell, this.command, cwd, env, composeProcessConfig());
       this.state = State.RUNNING;
       Stream<String> ret = Stream.concat(
           process.stream(),
@@ -497,10 +512,12 @@ public interface Cmd {
       ).build();
     }
 
-    private static StreamableProcess startProcess(Shell shell, String command, StreamableProcess.Config processConfig) {
+    private static StreamableProcess startProcess(Shell shell, String command, File cwd, Map<String, String> env, StreamableProcess.Config processConfig) {
       return new StreamableProcess(
           shell,
           command,
+          cwd,
+          env,
           processConfig
       );
     }

@@ -1,14 +1,15 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.github.dakusui</groupId>
+    <groupId>com.github.xjj59307</groupId>
     <artifactId>cmd</artifactId>
     <version>0.11.1-SNAPSHOT</version>
     <description>Command line streamer library for Java 8</description>
     <packaging>jar</packaging>
 
     <name>cmd</name>
-    <url>https://github.com/dakusui/cmd</url>
+    <url>https://github.com/xjj59307/cmd</url>
 
     <licenses>
         <license>
@@ -19,12 +20,11 @@
     </licenses>
 
     <scm>
-        <connection>scm:git:git://github.com/dakusui/cmd.git
-        </connection>
+        <connection>scm:git:git://github.com/xjj59307/cmd.git</connection>
         <developerConnection>
-            scm:git:git@github.com:dakusui/cmd.git
+            scm:git:git@github.com:xjj59307/cmd.git
         </developerConnection>
-        <url>http://github.com/dakusui/cmd</url>
+        <url>https://github.com/xjj59307/cmd</url>
         <tag>HEAD</tag>
     </scm>
 
@@ -33,6 +33,11 @@
             <id>dakusui</id>
             <name>Hiroshi Ukai</name>
             <email>dakusui@gmail.com</email>
+        </developer>
+        <developer>
+            <id>xjj59307</id>
+            <name>Junjian Xu</name>
+            <email>xjj59307@gmail.com</email>
         </developer>
     </developers>
 
