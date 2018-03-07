@@ -3,7 +3,7 @@
 
     <groupId>com.github.xjj59307</groupId>
     <artifactId>cmd</artifactId>
-    <version>0.11.1</version>
+    <version>0.11.2-SNAPSHOT</version>
     <description>Command line streamer library for Java 8</description>
     <packaging>jar</packaging>
 
@@ -24,7 +24,7 @@
             scm:git:git@github.com:xjj59307/cmd.git
         </developerConnection>
         <url>https://github.com/xjj59307/cmd</url>
-        <tag>cmd-0.11.1</tag>
+        <tag>HEAD</tag>
     </scm>
 
     <developers>
