@@ -10,6 +10,7 @@ import java.lang.reflect.Field;
 import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -29,7 +30,7 @@ public class StreamableProcess extends Process {
   private final Shell            shell;
 
   public StreamableProcess(Shell shell, String command, File cwd, Map<String, String> env, Config config) {
-    this.process = createProcess(shell, command, cwd, requireNonNull(env));
+    this.process = createProcess(shell, command, cwd, env);
     this.config = requireNonNull(config);
     this.stdout = IoUtils.toStream(this.getInputStream(), config.charset());
     this.stderr = IoUtils.toStream(this.getErrorStream(), config.charset());
@@ -45,6 +46,11 @@ public class StreamableProcess extends Process {
 
   private static Process createProcess(Shell shell, String command, File cwd, Map<String, String> env) {
     try {
+      Map<String, String> merged = new HashMap<>(System.getenv());
+      if (!Objects.isNull(env)) {
+        merged.putAll(env);
+      }
+
       return Runtime.getRuntime().exec(
           Stream.concat(
               Stream.concat(
@@ -52,8 +58,8 @@ public class StreamableProcess extends Process {
                   shell.options().stream()
               ),
               Stream.of(command)
-          ).collect(toList()).toArray(new String[shell.options().size() + 2]),
-          env.entrySet().stream()
+          ).toArray(String[]::new),
+          merged.entrySet().stream()
               .map(entry -> entry.getKey() + "=" + entry.getValue())
               .toArray(String[]::new),
           cwd

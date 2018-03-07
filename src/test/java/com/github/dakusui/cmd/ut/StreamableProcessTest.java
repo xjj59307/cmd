@@ -1,5 +1,6 @@
 package com.github.dakusui.cmd.ut;
 
+import com.github.dakusui.cmd.Cmd;
 import com.github.dakusui.cmd.Shell;
 import com.github.dakusui.cmd.core.IoUtils;
 import com.github.dakusui.cmd.core.StreamableProcess;
@@ -149,7 +150,7 @@ public class StreamableProcessTest extends TestUtils.TestBase {
   public void givenEnvVars$whenSetEnvVars$thenEnvVarsCanBeSeen() {
     List<String> stdout = new StreamableProcess(
         localShell(),
-        "echo $foo; echo $team",
+        "echo $foo; echo $team; echo $USER",
         null,
         new HashMap<String, String>() {{
           put("foo", "bar");
@@ -158,7 +159,8 @@ public class StreamableProcessTest extends TestUtils.TestBase {
         config(Stream.empty())
     ).stream().collect(Collectors.toList());
 
-    Assert.assertEquals(Arrays.asList("bar", "ngauto"), stdout);
+    String userName = Cmd.cmd("whoami").stream().collect(Collectors.joining());
+    Assert.assertEquals(Arrays.asList("bar", "ngauto", userName), stdout);
   }
 
   private Shell localShell() {

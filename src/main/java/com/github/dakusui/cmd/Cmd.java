@@ -11,11 +11,15 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.nio.charset.Charset;
-import java.util.*;
+import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntPredicate;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.github.dakusui.cmd.core.IoUtils.nop;
@@ -128,7 +132,7 @@ public interface Cmd {
     private Consumer<String>                         stdoutConsumer;
     private Consumer<String>                         stderrConsumer;
     private File                                     cwd;
-    private Map<String, String> env = new HashMap<>();
+    private Map<String, String>                      env;
 
     public Builder with(Shell shell) {
       this.shell = requireNonNull(shell);
@@ -141,6 +145,14 @@ public interface Cmd {
     }
 
     public Builder with(Map<String, String> env) {
+      List<String> illegalKeys = env.keySet().stream()
+          .filter(key -> key.contains("="))
+          .collect(Collectors.toList());
+
+      if (!illegalKeys.isEmpty()) {
+        throw new IllegalArgumentException(illegalKeys.toString());
+      }
+
       this.env = env;
       return this;
     }
@@ -275,7 +287,7 @@ public interface Cmd {
     synchronized public Stream<String> stream() {
       LOGGER.info("BEGIN:{}", this);
       requireState(State.PREPARING);
-      this.process = startProcess(this.shell, this.command, cwd, env, composeProcessConfig());
+      this.process = startProcess(this.shell, this.command, this.cwd, this.env, composeProcessConfig());
       this.state = State.RUNNING;
       Stream<String> ret = Stream.concat(
           process.stream(),
