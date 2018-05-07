@@ -139,12 +139,12 @@ public interface Cmd {
       return this;
     }
 
-    public Builder with(File cwd) {
+    public Builder cwd(File cwd) {
       this.cwd = cwd;
       return this;
     }
 
-    public Builder with(Map<String, String> env) {
+    public Builder env(Map<String, String> env) {
       List<String> illegalKeys = env.keySet().stream()
           .filter(key -> key.contains("="))
           .collect(Collectors.toList());
