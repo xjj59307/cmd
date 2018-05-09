@@ -5,9 +5,12 @@ import com.github.dakusui.cmd.StreamableQueue;
 import com.github.dakusui.cmd.exceptions.CommandExecutionException;
 import com.github.dakusui.cmd.exceptions.UnexpectedExitValueException;
 import com.github.dakusui.cmd.utils.TestUtils;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.function.Function;
@@ -15,8 +18,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static com.github.dakusui.cmd.Cmd.cat;
-import static com.github.dakusui.cmd.Cmd.cmd;
+import static com.github.dakusui.cmd.Cmd.*;
 import static com.github.dakusui.cmd.Shell.ssh;
 import static com.github.dakusui.cmd.utils.TestUtils.allOf;
 import static com.github.dakusui.cmd.utils.TestUtils.matcherBuilder;
@@ -26,7 +28,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 public class CmdTest extends TestUtils.TestBase {
+
   private List<String> out = Collections.synchronizedList(new LinkedList<>());
+
+  @Rule
+  public TemporaryFolder folder = new TemporaryFolder();
 
   @Test(timeout = 3_000)
   public void teeExample1() {
@@ -424,6 +430,42 @@ public class CmdTest extends TestUtils.TestBase {
                 "elementAt3", o -> o.get(3)
             ).check(
                 "contains'world'", s -> s.contains("world")
+            ).build()
+        )
+    );
+  }
+
+  @Test(timeout = 1_000)
+  public void streamExample7() {
+    local().command("pwd; echo $foo")
+        .cwd(folder.getRoot())
+        .env(new HashMap<String, String>() {{
+          put("foo", "bar");
+        }})
+        .build()
+        .readFrom(Stream.empty())
+        .stream()
+        .peek(System.out::println)
+        .forEach(out::add);
+
+    assertThat(
+        out,
+        allOf(
+            TestUtils.<List<String>, Integer>matcherBuilder(
+                "size", List::size
+            ).check(
+                "==2", size -> size == 2
+            ).build(),
+            TestUtils.<List<String>, String>matcherBuilder(
+                "elementAt0", o -> o.get(0)
+            ).check(
+                String.format("contains'%s'", folder.getRoot().getAbsolutePath()),
+                s -> s.equals(folder.getRoot().getAbsolutePath())
+            ).build(),
+            TestUtils.<List<String>, String>matcherBuilder(
+                "elementAt1", o -> o.get(1)
+            ).check(
+                "contains'bar'", s -> s.equals("bar")
             ).build()
         )
     );
