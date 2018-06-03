@@ -75,7 +75,7 @@ public interface Cmd {
    */
   Shell getShell();
 
-  String getCommand();
+  Supplier<String> getCommand();
 
   /**
    * Sets a stream of strings from which this object read data. If you do not call
@@ -126,8 +126,8 @@ public interface Cmd {
     private Function<Stream<String>, Stream<String>> inputTransformer  = null;
     private Function<Stream<String>, Stream<String>> stdoutTransformer = null;
     private IntPredicate                             exitValueChecker  = null;
-    private String command;
-    private Charset charset = Charset.defaultCharset();
+    private Supplier<String>                         commandSupplier;
+    private Charset                                  charset           = Charset.defaultCharset();
     private Function<Stream<String>, Stream<String>> stderrTransformer;
     private Consumer<String>                         stdoutConsumer;
     private Consumer<String>                         stderrConsumer;
@@ -163,7 +163,12 @@ public interface Cmd {
     }
 
     public Builder command(String command) {
-      this.command = requireNonNull(command);
+      Supplier<String> commandSupplier = () -> requireNonNull(command);
+      return this.command(commandSupplier);
+    }
+
+    public Builder command(Supplier<String> commandSupplier) {
+      this.commandSupplier = requireNonNull(commandSupplier);
       return this;
     }
 
@@ -210,13 +215,13 @@ public interface Cmd {
     }
 
     public Cmd build() {
-      return new Impl(this.shell, this.command, this.cwd, this.env, this.exitValueChecker, this.inputTransformer, this.stdoutTransformer, this.stdoutConsumer, this.stderrTransformer, this.stderrConsumer, charset);
+      return new Impl(this.shell, this.commandSupplier, this.cwd, this.env, this.exitValueChecker, this.inputTransformer, this.stdoutTransformer, this.stdoutConsumer, this.stderrTransformer, this.stderrConsumer, charset);
     }
   }
 
   class Impl implements Cmd {
     private final Shell                                    shell;
-    private final String                                   command;
+    private final Supplier<String>                         command;
     private final Charset                                  charset;
     private       Function<Stream<String>, Stream<String>> inputTransformer;
     private final Function<Stream<String>, Stream<String>> stderrTransformer;
@@ -227,14 +232,26 @@ public interface Cmd {
     private final List<Cmd>                                downstreams;
     private       State                                    state;
     private       StreamableProcess                        process;
-    private Supplier<Stream<String>> stdin = null;
-    private final File                cwd;
-    private final Map<String, String> env;
+    private       Supplier<Stream<String>>                 stdin = null;
+    private final File                                     cwd;
+    private final Map<String, String>                      env;
 
-    private Impl(Shell shell, String command, File cwd, Map<String, String> env, IntPredicate exitValueChecker, Function<Stream<String>, Stream<String>> inputTransformer, Function<Stream<String>, Stream<String>> stdoutTransformer, Consumer<String> stdoutConsumer, Function<Stream<String>, Stream<String>> stderrTransformer, Consumer<String> stderrConsumer, Charset charset) {
+    private Impl(
+        Shell shell,
+        Supplier<String> commandSupplier,
+        File cwd,
+        Map<String, String> env,
+        IntPredicate exitValueChecker,
+        Function<Stream<String>, Stream<String>> inputTransformer,
+        Function<Stream<String>, Stream<String>> stdoutTransformer,
+        Consumer<String> stdoutConsumer,
+        Function<Stream<String>, Stream<String>> stderrTransformer,
+        Consumer<String> stderrConsumer,
+        Charset charset
+    ) {
       this.exitValueChecker = requireNonNull(exitValueChecker);
       this.shell = requireNonNull(shell);
-      this.command = requireNonNull(command);
+      this.command = requireNonNull(commandSupplier);
       this.cwd = cwd;
       this.env = env;
       this.charset = requireNonNull(charset);
@@ -287,7 +304,7 @@ public interface Cmd {
     synchronized public Stream<String> stream() {
       LOGGER.info("BEGIN:{}", this);
       requireState(State.PREPARING);
-      this.process = startProcess(this.shell, this.command, this.cwd, this.env, composeProcessConfig());
+      this.process = startProcess(this.shell, this.command.get(), this.cwd, this.env, composeProcessConfig());
       this.state = State.RUNNING;
       Stream<String> ret = Stream.concat(
           process.stream(),
@@ -404,7 +421,7 @@ public interface Cmd {
     }
 
     @Override
-    public String getCommand() {
+    public Supplier<String> getCommand() {
       return this.command;
     }
 
