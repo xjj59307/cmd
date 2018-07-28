@@ -507,6 +507,7 @@ public interface Cmd {
       try {
         return process.waitFor();
       } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
         throw Exceptions.wrap(e, (Function<Throwable, RuntimeException>) throwable -> new CommandInterruptionException());
       } finally {
         LOGGER.debug("END:{}", this);
